@@ -1,7 +1,7 @@
 from flask import Flask
 from config import Config
 from utils.db import init_db_connection, mongo
-from flask import render_template
+from flask import session
 
 # Import all models
 from models import Role, User, Attendance, Holiday, Log, Institute
@@ -9,6 +9,7 @@ from models import Role, User, Attendance, Holiday, Log, Institute
 # Import controllers
 from controllers.auth_controller import auth_bp
 from controllers.systemadmin_controller import systemadmin_bp
+
 
 
 # Initialize Flask app
@@ -22,6 +23,10 @@ init_db_connection(app)
 app.register_blueprint(auth_bp)
 app.register_blueprint(systemadmin_bp)
 
+
+@app.context_processor
+def inject_user():
+    return dict(user_name=session.get("user_name"))
 
 
 # Run the app

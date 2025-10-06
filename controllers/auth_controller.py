@@ -1,8 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models.users import User
+from utils.auth import logout_user
 
 auth_bp = Blueprint("auth", __name__)
 
+# Login
+@auth_bp.route("/", methods=["GET", "POST"])
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -24,3 +27,10 @@ def login():
             return redirect(url_for("auth.login"))
 
     return render_template("auth-login.html")
+
+
+# Logout
+@auth_bp.route("/logout")
+def logout():
+    return logout_user()
+
