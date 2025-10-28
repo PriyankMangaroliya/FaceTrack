@@ -24,7 +24,7 @@
             </a>
             <div class="dropdown-menu dropdown-menu-right pullDown">
                 <div class="dropdown-title">{{ user_name }}</div>
-                <a href="#" class="dropdown-item has-icon"><i class="far fa-user"></i> Profile </a>
+                <a href="{{ url_for('auth.view_profile') }}" class="dropdown-item has-icon"><i class="far fa-user"></i> Profile </a>
                 <a href="#" class="dropdown-item has-icon"><i class="fas fa-bolt"></i> Activities </a>
                 <a href="javascript:void(0)" class="settingPanelToggle dropdown-item has-icon"><i class="fas fa-cog">
                 </i> Settings</a>

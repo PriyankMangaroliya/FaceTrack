@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" name="viewport">
+    <title>FaceTrack - User Profile</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/app.min.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='assets/bundles/bootstrap-social/bootstrap-social.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/custom.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='assets/img/favicon.ico') }}">
+</head>
+
+<body>
+<div class="loader"></div>
+<div id="app">
+    <div class="main-wrapper main-wrapper-1">
+
+        <!-- Sidebar -->
+        {% include 'systemadmin/sidebar.html' %}
+
+        <div class="main-content">
+            <section class="section">
+                <div class="section-body">
+                    <div class="row mt-sm-4">
+
+                        <!-- Left Column -->
+                        <div class="col-12 col-md-12 col-lg-4">
+                            <div class="card author-box">
+                                <div class="card-body text-center">
+                                    <img alt="image" src="{{ url_for('static', filename='assets/img/users/user-8.png') }}"
+                                         class="rounded-circle author-box-picture" style="width:100px;">
+                                    <div class="mt-3">
+                                        <h4>{{ user.name }}</h4>
+                                        <div class="author-box-job">{{ user.designation or 'No Designation' }}</div>
+                                        <p class="mt-2 text-muted">{{ institute.name if institute else 'No Institute Assigned' }}</p>
+                                        <p><span class="badge badge-info">{{ role.name if role else 'No Role Assigned' }}</span>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Column -->
+                        <div class="col-12 col-md-12 col-lg-8">
+                            <div class="card">
+                                <div class="card-header"><h4>About</h4></div>
+                                <div class="card-body">
+                                    <p class="clearfix"><span class="float-left">Email</span><span
+                                            class="float-right text-muted">{{ user.email }}</span></p>
+                                    <p class="clearfix"><span class="float-left">Phone</span><span
+                                            class="float-right text-muted">{{ user.phone or '-' }}</span></p>
+                                    <p class="clearfix"><span class="float-left">Department</span><span
+                                            class="float-right text-muted">{{ user.department or '-' }}</span></p>
+                                    <p class="clearfix"><span class="float-left">Designation</span><span
+                                            class="float-right text-muted">{{ user.designation or '-' }}</span></p>
+                                    <p class="clearfix"><span class="float-left">Status</span>
+                                        <span class="float-right text-muted">{% if user.status == "Active" %}
+                                            <span class="badge badge-success">Active</span>{% else %}
+                                            <span class="badge badge-danger">Inactive</span>{% endif %}
+                                        </span>
+                                    </p>
+                                    <hr>
+                                    <div class="text-right">
+                                        <a href="{{ url_for('auth.logout') }}" class="btn btn-danger">Logout</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<!-- JS -->
+<script src="{{ url_for('static', filename='assets/js/app.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/scripts.js') }}"></script>
+</body>
+</html>

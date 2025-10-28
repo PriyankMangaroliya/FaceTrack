@@ -34,3 +34,32 @@ def login():
 def logout():
     return logout_user()
 
+
+# View Profile
+@auth_bp.route("/profile")
+def view_profile():
+    from bson import ObjectId
+    from utils.db import mongo
+
+    user_id = session.get("user_id")
+    if not user_id:
+        flash("Please log in to view your profile.", "warning")
+        return redirect(url_for("auth.login"))
+
+    # Fetch user data
+    user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
+
+    if not user:
+        flash("User not found!", "danger")
+        return redirect(url_for("auth.login"))
+
+    # Convert ObjectIds for role and institute to readable names
+    role = mongo.db.roles.find_one({"_id": user.get("role_id")}) if user.get("role_id") else None
+    institute = mongo.db.institute.find_one({"_id": user.get("institute_id")}) if user.get("institute_id") else None
+
+    return render_template(
+        "auth-profile.html",
+        user=user,
+        role=role,
+        institute=institute
+    )
