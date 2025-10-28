@@ -1,35 +1,44 @@
-from flask import Flask
+from flask import Flask, session, redirect, url_for
 from config import Config
 from utils.db import init_db_connection, mongo
 from flask import session
-
-# Import all models
-from models import Role, User, Attendance, Holiday, Log, Institute
 
 # Import controllers
 from controllers.auth_controller import auth_bp
 from controllers.systemadmin_controller import systemadmin_bp
 
 
+app = Flask(__name__)               # Initialize Flask app
+app.config.from_object(Config)      # Load configuration from Config class
+init_db_connection(app)             # Initialize MongoDB connection
 
-# Initialize Flask app
-app = Flask(__name__)
-# Load configuration from Config class
-app.config.from_object(Config)
-# Initialize MongoDB connection
-init_db_connection(app)
 
 # Register Blueprint
 app.register_blueprint(auth_bp)
 app.register_blueprint(systemadmin_bp)
 
 
+
+
+# It globally injects user_name from the session into all Flask templates
+# so you can directly use {{ user_name }} anywhere without passing it manually.
 @app.context_processor
 def inject_user():
     return dict(user_name=session.get("user_name"))
 
 
+# Global before_request: block all routes except login/logout if not logged in
+@app.before_request
+def require_login():
+    from flask import request
+    allowed_routes = ["auth.login", "auth.logout", "static"]
+
+    # if not logged in and route not in allowed list
+    if "user_id" not in session and request.endpoint not in allowed_routes:
+        return redirect(url_for("auth.login"))
+    return None
+
+
 # Run the app
 if __name__ == "__main__":
     app.run(debug=True)
-

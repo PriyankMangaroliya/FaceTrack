@@ -45,39 +45,29 @@
         </div>
         <ul class="sidebar-menu">
             <li class="menu-header">System Admin</li>
-            <li class="dropdown active">
+            <li class="dropdown {% if request.endpoint == 'systemadmin.index' %}active{% endif %}">
                 <a href="{{ url_for('systemadmin.index') }}" class="nav-link">
                     <i data-feather="monitor"></i><span>Dashboard</span>
                 </a>
             </li>
-            <li class="dropdown">
-                <a href="#" class="menu-toggle nav-link has-dropdown">
+
+            <li class="dropdown {% if request.endpoint == 'systemadmin.viewroles' %}active{% endif %}">
+                <a href="{{ url_for('systemadmin.viewroles') }}" class="nav-link">
                     <i data-feather="user"></i><span>Roles</span>
                 </a>
-                <ul class="dropdown-menu">
-                    <li><a class="nav-link" href="manageRole.html">Add Roles</a></li>
-                    <li><a class="nav-link" href="viewRole.html">View Roles</a></li>
-                </ul>
             </li>
 
             <li class="dropdown">
-                <a href="#" class="menu-toggle nav-link has-dropdown">
+                <a href="{{ url_for('systemadmin.index') }}" class="nav-link">
                     <i data-feather="briefcase"></i><span>Institute</span>
                 </a>
-                <ul class="dropdown-menu">
-                    <li><a class="nav-link" href="manageInstitute.html">Add Institute</a></li>
-                    <li><a class="nav-link" href="viewInstitute.html">View Institute</a></li>
-                </ul>
             </li>
 
+
             <li class="dropdown">
-                <a href="#" class="menu-toggle nav-link has-dropdown">
+                <a href="{{ url_for('systemadmin.index') }}" class="nav-link">
                     <i data-feather="users"></i><span>Users</span>
                 </a>
-                <ul class="dropdown-menu">
-                    <li><a class="nav-link" href="manageUser.html">Add User</a></li>
-                    <li><a class="nav-link" href="viewUser.html">View Users</a></li>
-                </ul>
             </li>
 
             <li class="dropdown">
