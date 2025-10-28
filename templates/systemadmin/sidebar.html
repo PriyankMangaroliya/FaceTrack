@@ -19,14 +19,15 @@
         <li class="dropdown">
             <a href="#" data-toggle="dropdown" class="nav-link dropdown-toggle nav-link-lg nav-link-user">
                 <img alt="image" src="{{ url_for('static', filename='assets/img/users/user-8.png') }}"
-                    class="user-img-radious-style">
+                     class="user-img-radious-style">
                 <span class="d-sm-none d-lg-inline-block"></span>
             </a>
             <div class="dropdown-menu dropdown-menu-right pullDown">
                 <div class="dropdown-title">{{ user_name }}</div>
                 <a href="#" class="dropdown-item has-icon"><i class="far fa-user"></i> Profile </a>
-                <a href="#" class="dropdown-item has-icon"> <i class="fas fa-bolt"></i> Activities </a>
-                <a href="#" class="dropdown-item has-icon"> <i class="fas fa-cog"></i> Settings </a>
+                <a href="#" class="dropdown-item has-icon"><i class="fas fa-bolt"></i> Activities </a>
+                <a href="javascript:void(0)" class="settingPanelToggle dropdown-item has-icon"><i class="fas fa-cog">
+                </i> Settings</a>
                 <div class="dropdown-divider"></div>
                 <a href="{{ url_for('auth.logout') }}" class="dropdown-item has-icon text-danger">
                     <i class="fas fa-sign-out-alt"></i> Logout
@@ -65,9 +66,8 @@
                 </a>
             </li>
 
-
-            <li class="dropdown">
-                <a href="{{ url_for('systemadmin.index') }}" class="nav-link">
+            <li class="dropdown {% if request.endpoint == 'users.view_users' %}active{% endif %}">
+                <a href="{{ url_for('users.view_users') }}" class="nav-link">
                     <i data-feather="users"></i><span>Users</span>
                 </a>
             </li>
