@@ -8,6 +8,7 @@ from controllers.auth_controller import auth_bp
 from controllers.systemadmin_controller import systemadmin_bp
 from controllers.sa_roles_controller import roles_bp
 from controllers.sa_institutes_controller import institutes_bp
+from controllers.sa_users_controller import users_bp
 
 app = Flask(__name__)               # Initialize Flask app
 app.config.from_object(Config)      # Load configuration from Config class
@@ -19,7 +20,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(systemadmin_bp)
 app.register_blueprint(roles_bp)
 app.register_blueprint(institutes_bp)
-
+app.register_blueprint(users_bp)
 
 
 
