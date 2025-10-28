@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" name="viewport">
-    <title>FaceTrack - View Roles</title>
+    <title>FaceTrack - System Admin | View Roles</title>
+
     <!-- General CSS Files -->
     <link rel="stylesheet" href="../../static/assets/css/app.min.css">
     <link rel="stylesheet" href="../../static/assets/bundles/datatables/datatables.min.css">
@@ -21,20 +22,24 @@
 <div id="app">
     <div class="main-wrapper main-wrapper-1">
 
-        <!-- Header Component -->
+        <!-- Sidebar -->
         {% include 'systemadmin/sidebar.html' %}
 
         <!-- Main Content -->
         <div class="main-content">
-
             <section class="section">
                 <div class="section-body">
                     <div class="row">
                         <div class="col-12">
                             <div class="card">
+
                                 <div class="card-header">
-                                    <h4>View Roles</h4>
+                                    <h4>Manage Roles</h4>
+                                    <div class="card-header-action">
+                                        <a href="{{ url_for('roles.add_role') }}" class="btn btn-primary">Add Role</a>
+                                    </div>
                                 </div>
+
                                 <div class="card-body">
                                     <div class="table-responsive">
                                         <table class="table table-striped" id="table-1">
@@ -47,65 +52,58 @@
                                             </tr>
                                             </thead>
                                             <tbody>
-                                            <tr>
-                                                <td>1</td>
-                                                <td>System Admin</td>
-                                                <td>Manage All System</td>
-                                                <td>
-                                                    <a href="#" class="btn btn-primary">Permissions</a>
-                                                    <a href="#" class="btn btn-info">Update</a>
-                                                    <!--                                                    <a href="#" class="btn btn-danger">Delete</a>-->
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>2</td>
-                                                <td>HR / Academic Admin</td>
-                                                <td>Manage Employee Panel</td>
-                                                <td>
-                                                    <a href="#" class="btn btn-primary">Permissions</a>
-                                                    <a href="#" class="btn btn-info">Update</a>
-                                                    <a href="#" class="btn btn-danger">Delete</a>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>3</td>
-                                                <td>Employee</td>
-                                                <td>View Employee Panel</td>
-                                                <td>
-                                                    <a href="#" class="btn btn-primary">Permissions</a>
-                                                    <a href="#" class="btn btn-info">Update</a>
-                                                    <a href="#" class="btn btn-danger">Delete</a>
-                                                </td>
-                                            </tr>
+                                            {% for role in roles %}
+                                                <tr>
+                                                    <td>{{ loop.index }}</td>
+                                                    <td>{{ role.name }}</td>
+                                                    <td>{{ role.description or 'No description' }}</td>
+                                                    <td>
+                                                        <a href="#" class="btn btn-primary btn-sm">Permissions</a>
 
+                                                        <a href="{{ url_for('roles.edit_role', role_id=role._id) }}"
+                                                           class="btn btn-info btn-sm">Update</a>
+
+                                                        {% if role.name == "System Admin" %}
+                                                            <button class="btn btn-danger btn-sm" disabled>Not Delete
+                                                            </button>
+                                                        {% else %}
+                                                            <a href="{{ url_for('roles.delete_role', role_id=role._id) }}"
+                                                               class="btn btn-danger btn-sm"
+                                                               onclick="return confirm('Are you sure you want to delete this role?');">
+                                                                Delete
+                                                            </a>
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                            {% else %}
+                                                <tr>
+                                                    <td colspan="4" class="text-center text-muted">
+                                                        No roles found in the database
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
                                             </tbody>
                                         </table>
                                     </div>
                                 </div>
+
                             </div>
                         </div>
                     </div>
-
                 </div>
             </section>
 
-            <!-- Settings Component -->
             {% include 'systemadmin/settings.html' %}
-
         </div>
     </div>
 </div>
 
-<!-- General JS Scripts -->
+<!-- JS -->
 <script src="../../static/assets/js/app.min.js"></script>
-<!-- JS Libraies -->
 <script src="../../static/assets/bundles/datatables/datatables.min.js"></script>
 <script src="../../static/assets/bundles/datatables/DataTables-1.10.16/js/dataTables.bootstrap4.min.js"></script>
 <script src="../../static/assets/bundles/jquery-ui/jquery-ui.min.js"></script>
-<!-- Page Specific JS File -->
 <script src="../../static/assets/js/page/datatables.js"></script>
-<!-- Template JS File -->
 <script src="../../static/assets/js/scripts.js"></script>
-
 </body>
 </html>

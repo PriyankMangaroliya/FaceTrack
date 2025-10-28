@@ -1,12 +1,13 @@
-from flask import Flask, session, redirect, url_for
+from flask import Flask, redirect, url_for
 from config import Config
-from utils.db import init_db_connection, mongo
+from utils.db import init_db_connection
 from flask import session
 
 # Import controllers
 from controllers.auth_controller import auth_bp
 from controllers.systemadmin_controller import systemadmin_bp
-
+from controllers.sa_roles_controller import roles_bp
+from controllers.sa_institutes_controller import institutes_bp
 
 app = Flask(__name__)               # Initialize Flask app
 app.config.from_object(Config)      # Load configuration from Config class
@@ -16,6 +17,8 @@ init_db_connection(app)             # Initialize MongoDB connection
 # Register Blueprint
 app.register_blueprint(auth_bp)
 app.register_blueprint(systemadmin_bp)
+app.register_blueprint(roles_bp)
+app.register_blueprint(institutes_bp)
 
 
 

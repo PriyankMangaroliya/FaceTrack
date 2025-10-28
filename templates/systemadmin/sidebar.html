@@ -18,7 +18,8 @@
     <ul class="navbar-nav navbar-right">
         <li class="dropdown">
             <a href="#" data-toggle="dropdown" class="nav-link dropdown-toggle nav-link-lg nav-link-user">
-                <img alt="image" src="../../static/assets/img/users/user-8.png" class="user-img-radious-style">
+                <img alt="image" src="{{ url_for('static', filename='assets/img/users/user-8.png') }}"
+                    class="user-img-radious-style">
                 <span class="d-sm-none d-lg-inline-block"></span>
             </a>
             <div class="dropdown-menu dropdown-menu-right pullDown">
@@ -39,7 +40,8 @@
     <aside id="sidebar-wrapper">
         <div class="sidebar-brand">
             <a href="{{ url_for('systemadmin.index') }}">
-                <img alt="image" src="../../static/assets/img/logo.png" class="header-logo"/>
+                <img alt="image" src="{{ url_for('static', filename='assets/img/logo.png') }}"
+                     class="header-logo"/>
                 <span class="logo-name">FaceTrack</span>
             </a>
         </div>
@@ -51,14 +53,14 @@
                 </a>
             </li>
 
-            <li class="dropdown {% if request.endpoint == 'systemadmin.viewroles' %}active{% endif %}">
-                <a href="{{ url_for('systemadmin.viewroles') }}" class="nav-link">
+            <li class="dropdown {% if request.endpoint == 'roles.viewroles' %}active{% endif %}">
+                <a href="{{ url_for('roles.view_roles') }}" class="nav-link">
                     <i data-feather="user"></i><span>Roles</span>
                 </a>
             </li>
 
-            <li class="dropdown">
-                <a href="{{ url_for('systemadmin.index') }}" class="nav-link">
+            <li class="dropdown {% if request.endpoint == 'institutes.viewinstitutes' %}active{% endif %}">
+                <a href="{{ url_for('institutes.view_institutes') }}" class="nav-link">
                     <i data-feather="briefcase"></i><span>Institute</span>
                 </a>
             </li>
