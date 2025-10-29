@@ -6,7 +6,7 @@ from flask import session
 # Import controllers
 from controllers.auth_controller import auth_bp
 
-from controllers.systemadmin_controller import systemadmin_bp
+from controllers.sa_controller import systemadmin_bp
 from controllers.sa_roles_controller import roles_bp
 from controllers.sa_institutes_controller import institutes_bp
 from controllers.sa_users_controller import users_bp
@@ -15,10 +15,11 @@ from controllers.hr_controller import hr_bp
 from controllers.hr_users_controller import hr_users_bp
 from controllers.hr_employee_controller import hr_employee_bp
 
+from controllers.emp_controller import employee_bp
+
 app = Flask(__name__)               # Initialize Flask app
 app.config.from_object(Config)      # Load configuration from Config class
 init_db_connection(app)             # Initialize MongoDB connection
-
 
 # Register Blueprint
 app.register_blueprint(auth_bp)
@@ -32,7 +33,7 @@ app.register_blueprint(hr_bp)
 app.register_blueprint(hr_users_bp)
 app.register_blueprint(hr_employee_bp)
 
-
+app.register_blueprint(employee_bp)
 
 
 
