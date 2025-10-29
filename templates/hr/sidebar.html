@@ -61,9 +61,9 @@
                 </a>
             </li>
 
-            <li class="dropdown {% if request.endpoint == 'institutes.viewinstitutes' %}active{% endif %}">
-                <a href="{{ url_for('institutes.view_institutes') }}" class="nav-link">
-                    <i data-feather="briefcase"></i><span>Employees</span>
+            <li class="dropdown {% if request.endpoint == 'employee_users.view_users' %}active{% endif %}">
+                <a href="{{ url_for('employee_users.view_users') }}" class="nav-link">
+                    <i data-feather="users"></i><span>Employees</span>
                 </a>
             </li>
 

@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash
 hr_users_bp = Blueprint("hr_users", __name__, url_prefix="/hr/users")
 
 
-# View all HR users in the same institute
+# VIEW ALL HR USERS (in same institute)
 @hr_users_bp.route("/viewusers")
 @login_required
 def view_users():
@@ -18,7 +18,6 @@ def view_users():
             flash("Please log in first.", "warning")
             return redirect(url_for("auth.login"))
 
-        # Fetch HR’s own data
         hr_user = mongo.db.users.find_one({"_id": ObjectId(hr_user_id)})
         if not hr_user:
             flash("HR account not found.", "danger")
@@ -29,13 +28,11 @@ def view_users():
             flash("You are not assigned to any institute.", "danger")
             return render_template("hr/viewUsers.html", users=[])
 
-        # Get role_id for "HR"
         hr_role = mongo.db.roles.find_one({"name": "HR"})
         if not hr_role:
             flash("HR role not found in the database.", "danger")
             return render_template("hr/viewUsers.html", users=[])
 
-        # Fetch all HRs from the same institute
         users = list(mongo.db.users.find({
             "institute_id": ObjectId(institute_id),
             "role_id": hr_role["_id"]
@@ -43,10 +40,9 @@ def view_users():
 
         for user in users:
             user["_id"] = str(user["_id"])
-            user["institute_name"] = mongo.db.institute.find_one(
-                {"_id": ObjectId(institute_id)},
-                {"name": 1}
-            )["name"]
+            institute = mongo.db.institute.find_one({"_id": ObjectId(institute_id)}, {"name": 1})
+            user["institute_name"] = institute.get("name", "-") if institute else "-"
+            user["role_name"] = "HR"
 
         return render_template("hr/viewUsers.html", users=users)
 
@@ -55,7 +51,7 @@ def view_users():
         return render_template("hr/viewUsers.html", users=[])
 
 
-# Add new HR user
+# ADD HR USER
 @hr_users_bp.route("/adduser", methods=["GET", "POST"])
 @login_required
 def add_user():
@@ -69,24 +65,22 @@ def add_user():
             email = request.form.get("email")
             phone = request.form.get("phone")
             password = request.form.get("password")
+            department = request.form.get("department")
+            designation = request.form.get("designation")
 
             if not name or not email or not password:
-                flash("All required fields must be filled.", "warning")
+                flash("Name, Email, and Password are required.", "warning")
                 return redirect(url_for("hr_users.add_user"))
 
-            # Find HR role
             hr_role = mongo.db.roles.find_one({"name": "HR"})
             if not hr_role:
-                flash("HR role not found in the database.", "danger")
+                flash("HR role not found.", "danger")
                 return redirect(url_for("hr_users.add_user"))
 
-            # Check if user already exists
-            existing_user = mongo.db.users.find_one({"email": email})
-            if existing_user:
-                flash("User with this email already exists!", "warning")
+            if mongo.db.users.find_one({"email": email}):
+                flash("User with this email already exists.", "warning")
                 return redirect(url_for("hr_users.add_user"))
 
-            # Insert HR user
             mongo.db.users.insert_one({
                 "name": name,
                 "email": email,
@@ -94,11 +88,14 @@ def add_user():
                 "password": generate_password_hash(password),
                 "role_id": hr_role["_id"],
                 "institute_id": ObjectId(institute_id),
+                "department": department,
+                "designation": designation,
                 "status": "Active",
-                "created_at": datetime.utcnow()
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow()
             })
 
-            flash("HR User added successfully!", "success")
+            flash("HR user added successfully!", "success")
             return redirect(url_for("hr_users.view_users"))
 
         return render_template("hr/manageUsers.html", user=None)
@@ -108,20 +105,22 @@ def add_user():
         return redirect(url_for("hr_users.view_users"))
 
 
-# Update existing HR user
+# UPDATE HR USER
 @hr_users_bp.route("/edituser/<user_id>", methods=["GET", "POST"])
 @login_required
 def edit_user(user_id):
     try:
         user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
         if not user:
-            flash("User not found!", "danger")
+            flash("User not found.", "danger")
             return redirect(url_for("hr_users.view_users"))
 
         if request.method == "POST":
             name = request.form.get("name")
             email = request.form.get("email")
             phone = request.form.get("phone")
+            department = request.form.get("department")
+            designation = request.form.get("designation")
             status = request.form.get("status")
 
             mongo.db.users.update_one(
@@ -130,28 +129,31 @@ def edit_user(user_id):
                     "name": name,
                     "email": email,
                     "phone": phone,
+                    "department": department,
+                    "designation": designation,
                     "status": status,
                     "updated_at": datetime.utcnow()
                 }}
             )
 
-            flash("HR User updated successfully!", "success")
+            flash("HR user updated successfully!", "success")
             return redirect(url_for("hr_users.view_users"))
 
+        user["_id"] = str(user["_id"])
         return render_template("hr/manageUsers.html", user=user)
 
     except Exception as e:
-        flash(f"Error updating user: {e}", "danger")
+        flash(f"Error updating HR user: {e}", "danger")
         return redirect(url_for("hr_users.view_users"))
 
 
-# Delete HR user
+# DELETE HR USER
 @hr_users_bp.route("/deleteuser/<user_id>")
 @login_required
 def delete_user(user_id):
     try:
         mongo.db.users.delete_one({"_id": ObjectId(user_id)})
-        flash("HR User deleted successfully!", "success")
+        flash("HR user deleted successfully!", "success")
     except Exception as e:
         flash(f"Error deleting HR user: {e}", "danger")
 

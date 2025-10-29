@@ -12,6 +12,7 @@ from controllers.sa_users_controller import users_bp
 
 from controllers.hr_controller import hr_bp
 from controllers.hr_users_controller import hr_users_bp
+from controllers.hr_employee_controller import hr_employee_bp
 
 app = Flask(__name__)               # Initialize Flask app
 app.config.from_object(Config)      # Load configuration from Config class
@@ -27,6 +28,7 @@ app.register_blueprint(users_bp)
 
 app.register_blueprint(hr_bp)
 app.register_blueprint(hr_users_bp)
+app.register_blueprint(hr_employee_bp)
 
 
 
