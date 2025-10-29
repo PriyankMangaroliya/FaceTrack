@@ -87,7 +87,7 @@ def add_user():
     # Fetch dropdown data
     roles = list(mongo.db.roles.find())
     institutes = list(mongo.db.institute.find())
-    return render_template("systemadmin/manageUser.html", user=None, roles=roles, institutes=institutes)
+    return render_template("systemadmin/manageUsers.html", user=None, roles=roles, institutes=institutes)
 
 
 # -----------------------------
@@ -141,7 +141,7 @@ def edit_user(user_id):
     roles = list(mongo.db.roles.find())
     institutes = list(mongo.db.institute.find())
 
-    return render_template("systemadmin/manageUser.html", user=user, roles=roles, institutes=institutes)
+    return render_template("systemadmin/manageUsers.html", user=user, roles=roles, institutes=institutes)
 
 
 # -----------------------------

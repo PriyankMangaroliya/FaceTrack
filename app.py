@@ -10,6 +10,9 @@ from controllers.sa_roles_controller import roles_bp
 from controllers.sa_institutes_controller import institutes_bp
 from controllers.sa_users_controller import users_bp
 
+from controllers.hr_controller import hr_bp
+from controllers.hr_users_controller import hr_users_bp
+
 app = Flask(__name__)               # Initialize Flask app
 app.config.from_object(Config)      # Load configuration from Config class
 init_db_connection(app)             # Initialize MongoDB connection
@@ -21,6 +24,9 @@ app.register_blueprint(systemadmin_bp)
 app.register_blueprint(roles_bp)
 app.register_blueprint(institutes_bp)
 app.register_blueprint(users_bp)
+
+app.register_blueprint(hr_bp)
+app.register_blueprint(hr_users_bp)
 
 
 

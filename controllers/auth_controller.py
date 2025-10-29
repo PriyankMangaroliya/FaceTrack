@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from models.users import User
 from utils.auth import logout_user
+from utils.db import mongo
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -18,9 +19,23 @@ def login():
             session["user_id"] = str(user["_id"])
             session["user_name"] = user["name"]
 
+            # Fetch role name from role_id (if stored separately)
+            role = mongo.db.roles.find_one({"_id": user.get("role_id")})
+            role_name = role["name"].lower() if role else "employee"
+
             flash(f"Welcome {user['name']}!", "success")
 
-            return redirect(url_for("systemadmin.index"))
+            # Redirect based on role
+            if role_name == "system admin":
+                return redirect(url_for("systemadmin.index"))
+            elif role_name == "hr":
+                return redirect(url_for("hr.index"))
+            elif role_name == "employee":
+                return redirect(url_for("employee.index"))
+            else:
+                # Default if role not found
+                flash("Role not recognized. Redirecting to home.", "warning")
+                return redirect(url_for("auth.login"))
 
         else:
             flash("Invalid email or password", "danger")

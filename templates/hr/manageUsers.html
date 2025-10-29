@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" name="viewport">
+    <title>FaceTrack - HR | Manage HR Users</title>
+
+    <!-- General CSS Files -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/app.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/custom.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='assets/img/favicon.ico') }}">
+</head>
+
+<body>
+<div class="loader"></div>
+<div id="app">
+    <div class="main-wrapper main-wrapper-1">
+
+        <!-- Sidebar -->
+        {% include 'hr/sidebar.html' %}
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div class="section-body">
+                <div class="row">
+                    <div class="col-12 col-md-12 col-lg-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4>
+                                    {% if user %}
+                                        Update HR User
+                                    {% else %}
+                                        Add HR User
+                                    {% endif %}
+                                </h4>
+                            </div>
+
+                            <form method="POST">
+                                <div class="card-body">
+                                    <div class="form-group">
+                                        <label>Name <span class="text-danger">*</span></label>
+                                        <input type="text" name="name" class="form-control"
+                                               value="{{ user.name if user else '' }}" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Email <span class="text-danger">*</span></label>
+                                        <input type="email" name="email" class="form-control"
+                                               value="{{ user.email if user else '' }}" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Phone</label>
+                                        <input type="text" name="phone" class="form-control"
+                                               value="{{ user.phone if user else '' }}">
+                                    </div>
+
+                                    {% if not user %}
+                                        <div class="form-group">
+                                            <label>Password <span class="text-danger">*</span></label>
+                                            <input type="password" name="password" class="form-control" required>
+                                        </div>
+                                    {% endif %}
+
+                                    {% if user %}
+                                        <div class="form-group">
+                                            <label>Status</label>
+                                            <select name="status" class="form-control">
+                                                <option value="Active"
+                                                        {% if user.status == "Active" %}selected{% endif %}>Active
+                                                </option>
+                                                <option value="Inactive"
+                                                        {% if user.status == "Inactive" %}selected{% endif %}>Inactive
+                                                </option>
+                                            </select>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="card-footer text-left">
+                                    <button type="submit" class="btn btn-primary mr-1">
+                                        {% if user %} Update {% else %} Submit {% endif %}
+                                    </button>
+                                    <a href="{{ url_for('hr_users.view_users') }}" class="btn btn-dark">Cancel</a>
+                                </div>
+                            </form>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% include 'hr/settings.html' %}
+        </div>
+    </div>
+</div>
+
+<!-- JS Files -->
+<script src="{{ url_for('static', filename='assets/js/app.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/scripts.js') }}"></script>
+</body>
+</html>
