@@ -4,11 +4,17 @@ from utils.db import mongo
 from utils.auth import login_required
 from werkzeug.security import generate_password_hash
 from datetime import datetime
+import os
+
+# Import face utilities
+from utils.face_utils import capture_faces_for_user, check_existing_faces
 
 hr_employee_bp = Blueprint("employee_users", __name__, url_prefix="/hr/employee")
 
 
-# VIEW EMPLOYEES (only "Employee" role from same institute)
+# -----------------------------
+# VIEW EMPLOYEES (only Employee role)
+# -----------------------------
 @hr_employee_bp.route("/viewusers")
 @login_required
 def view_users():
@@ -18,7 +24,6 @@ def view_users():
             flash("Please log in first.", "warning")
             return redirect(url_for("auth.login"))
 
-        # Fetch current HR user
         current_user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
         if not current_user:
             flash("User not found.", "danger")
@@ -31,17 +36,15 @@ def view_users():
             flash("Employee role not found.", "danger")
             return render_template("hr/viewEmployees.html", users=[])
 
-        # Fetch all employees from same institute
         users = list(mongo.db.users.find({
             "institute_id": ObjectId(institute_id),
             "role_id": ObjectId(employee_role["_id"])
         }))
 
+        # Add display helpers
         for user in users:
             user["_id"] = str(user["_id"])
-            user["institute_name"] = mongo.db.institute.find_one(
-                {"_id": ObjectId(user["institute_id"])}, {"name": 1}
-            )["name"] if user.get("institute_id") else "-"
+            user["face_registered"] = check_existing_faces(user["_id"], user["name"])
             user["role_name"] = "Employee"
 
         return render_template("hr/viewEmployees.html", users=users)
@@ -51,7 +54,9 @@ def view_users():
         return render_template("hr/viewEmployees.html", users=[])
 
 
+# -----------------------------
 # ADD EMPLOYEE
+# -----------------------------
 @hr_employee_bp.route("/adduser", methods=["GET", "POST"])
 @login_required
 def add_user():
@@ -77,12 +82,10 @@ def add_user():
                 flash("Employee role not found!", "danger")
                 return redirect(url_for("employee_users.add_user"))
 
-            # Check existing email
             if mongo.db.users.find_one({"email": email}):
                 flash("Email already registered!", "warning")
                 return redirect(url_for("employee_users.add_user"))
 
-            # Insert new employee
             new_user = {
                 "name": name,
                 "email": email,
@@ -93,6 +96,7 @@ def add_user():
                 "department": department,
                 "designation": designation,
                 "status": status,
+                "face_registered": False,
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
             }
@@ -108,7 +112,9 @@ def add_user():
         return redirect(url_for("employee_users.view_users"))
 
 
+# -----------------------------
 # UPDATE EMPLOYEE
+# -----------------------------
 @hr_employee_bp.route("/edituser/<user_id>", methods=["GET", "POST"])
 @login_required
 def edit_user(user_id):
@@ -150,7 +156,9 @@ def edit_user(user_id):
         return redirect(url_for("employee_users.view_users"))
 
 
+# -----------------------------
 # DELETE EMPLOYEE
+# -----------------------------
 @hr_employee_bp.route("/deleteuser/<user_id>")
 @login_required
 def delete_user(user_id):
@@ -161,3 +169,57 @@ def delete_user(user_id):
         flash(f"Error deleting employee: {e}", "danger")
 
     return redirect(url_for("employee_users.view_users"))
+
+
+# -----------------------------
+# REGISTER FACE (NEW)
+# -----------------------------
+@hr_employee_bp.route("/register_face/<user_id>")
+@login_required
+def register_face(user_id):
+    try:
+        user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            flash("Employee not found!", "danger")
+            return redirect(url_for("employee_users.view_users"))
+
+        folder_path = capture_faces_for_user(user_id, user["name"])
+        if folder_path:
+            mongo.db.users.update_one(
+                {"_id": ObjectId(user_id)},
+                {"$set": {"face_registered": True, "updated_at": datetime.utcnow()}}
+            )
+            flash("Face registered successfully!", "success")
+        else:
+            flash("No faces captured. Try again.", "warning")
+
+    except Exception as e:
+        flash(f"Error during face registration: {e}", "danger")
+
+    return redirect(url_for("employee_users.view_users"))
+
+
+# -----------------------------
+# VIEW FACE (NEW)
+# -----------------------------
+@hr_employee_bp.route("/view_face/<user_id>")
+@login_required
+def view_face(user_id):
+    try:
+        user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            flash("Employee not found!", "danger")
+            return redirect(url_for("employee_users.view_users"))
+
+        dataset_path = os.path.join("dataset", f"{user_id}_{user['name']}")
+        if not os.path.exists(dataset_path):
+            flash("No face data found. Please register first.", "warning")
+            return redirect(url_for("employee_users.view_users"))
+
+        # List captured images for preview
+        images = [f for f in os.listdir(dataset_path) if f.endswith(".jpg") or f.endswith(".png")]
+        return render_template("hr/viewFace.html", user=user, images=images, folder=dataset_path)
+
+    except Exception as e:
+        flash(f"Error viewing face data: {e}", "danger")
+        return redirect(url_for("employee_users.view_users"))
