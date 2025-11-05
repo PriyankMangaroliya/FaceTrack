@@ -7,13 +7,12 @@ class Attendance:
     def collection():
         return mongo.db.attendances
 
-    def __init__(self, user_id, institute_id, date, in_time=None, out_time=None,
+    def __init__(self, user_id, institute_id, date, time=None,
                  marked_by=None, remarks=None, correction=None, created_at=None, updated_at=None):
         self.user_id = user_id
         self.institute_id = institute_id
         self.date = date
-        self.in_time = in_time
-        self.out_time = out_time
+        self.time = time
         self.marked_by = marked_by  # "System", "Admin", "HR"
         self.remarks = remarks
         self.correction = correction
@@ -25,8 +24,7 @@ class Attendance:
             "user_id": self.user_id,
             "institute_id": self.institute_id,
             "date": self.date,
-            "in_time": self.in_time,
-            "out_time": self.out_time,
+            "time": self.time,
             "marked_by": self.marked_by,
             "remarks": self.remarks,
             "correction": self.correction,

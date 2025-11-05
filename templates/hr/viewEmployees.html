@@ -73,19 +73,11 @@
                                                         {% endif %}
                                                     </td>
                                                     <td>
-                                                        {% if not user.face_registered %}
-                                                            <a href="{{ url_for('employee_users.register_face', user_id=user._id) }}"
-                                                               class="btn btn-success btn-sm">
-                                                                Register Face
-                                                            </a>
-                                                        {% else %}
-                                                            <a href="{{ url_for('employee_users.view_face', user_id=user._id) }}"
-                                                               class="btn btn-primary btn-sm">
-                                                                View / Update Face
-                                                            </a>
-                                                        {% endif %}
+                                                        <a href="{{ user.face_action.url }}"
+                                                           class="{{ user.face_action.class }}">
+                                                            {{ user.face_action.label }}
+                                                        </a>
                                                     </td>
-
                                                     <td>
                                                         <a href="{{ url_for('employee_users.edit_user', user_id=user._id) }}"
                                                            class="btn btn-info btn-sm">Update</a>

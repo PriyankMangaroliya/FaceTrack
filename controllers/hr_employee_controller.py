@@ -4,17 +4,15 @@ from utils.db import mongo
 from utils.auth import login_required
 from werkzeug.security import generate_password_hash
 from datetime import datetime
-import os
 
 # Import face utilities
-from utils.face_utils import capture_faces_for_user, check_existing_faces
+from utils.face_utils import capture_faces_for_user, is_face_registered
 
 hr_employee_bp = Blueprint("employee_users", __name__, url_prefix="/hr/employee")
 
-
-# -----------------------------
+# -------------------------------------------------------------
 # VIEW EMPLOYEES (only Employee role)
-# -----------------------------
+# -------------------------------------------------------------
 @hr_employee_bp.route("/viewusers")
 @login_required
 def view_users():
@@ -26,12 +24,11 @@ def view_users():
 
         current_user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
         if not current_user:
-            flash("User not found.", "danger")
+            flash("User not found!", "danger")
             return redirect(url_for("auth.login"))
 
         institute_id = current_user.get("institute_id")
         employee_role = mongo.db.roles.find_one({"name": "Employee"})
-
         if not employee_role:
             flash("Employee role not found.", "danger")
             return render_template("hr/viewEmployees.html", users=[])
@@ -39,24 +36,39 @@ def view_users():
         users = list(mongo.db.users.find({
             "institute_id": ObjectId(institute_id),
             "role_id": ObjectId(employee_role["_id"])
-        }))
+        }).sort("name", 1))
 
-        # Add display helpers
+        # Attach button info for face actions
         for user in users:
             user["_id"] = str(user["_id"])
-            user["face_registered"] = check_existing_faces(user["_id"], user["name"])
+            user["face_registered"] = is_face_registered(user["_id"])
             user["role_name"] = "Employee"
+
+            # Button: Register OR View/Update Face
+            if user["face_registered"]:
+                user["face_action"] = {
+                    "label": "View / Update Face",
+                    "url": url_for("employee_users.update_face", user_id=user["_id"]),
+                    "class": "btn btn-success btn-sm"
+                }
+            else:
+                user["face_action"] = {
+                    "label": "Register Face",
+                    "url": url_for("employee_users.register_face", user_id=user["_id"]),
+                    "class": "btn btn-primary btn-sm"
+                }
 
         return render_template("hr/viewEmployees.html", users=users)
 
     except Exception as e:
+        print(f"[ERROR] {e}")
         flash(f"Error fetching employees: {e}", "danger")
         return render_template("hr/viewEmployees.html", users=[])
 
 
-# -----------------------------
+# -------------------------------------------------------------
 # ADD EMPLOYEE
-# -----------------------------
+# -------------------------------------------------------------
 @hr_employee_bp.route("/adduser", methods=["GET", "POST"])
 @login_required
 def add_user():
@@ -97,6 +109,7 @@ def add_user():
                 "designation": designation,
                 "status": status,
                 "face_registered": False,
+                "face_data": {},
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
             }
@@ -112,9 +125,9 @@ def add_user():
         return redirect(url_for("employee_users.view_users"))
 
 
-# -----------------------------
+# -------------------------------------------------------------
 # UPDATE EMPLOYEE
-# -----------------------------
+# -------------------------------------------------------------
 @hr_employee_bp.route("/edituser/<user_id>", methods=["GET", "POST"])
 @login_required
 def edit_user(user_id):
@@ -125,26 +138,18 @@ def edit_user(user_id):
             return redirect(url_for("employee_users.view_users"))
 
         if request.method == "POST":
-            name = request.form.get("name")
-            email = request.form.get("email")
-            phone = request.form.get("phone")
-            department = request.form.get("department")
-            designation = request.form.get("designation")
-            status = request.form.get("status")
-
             mongo.db.users.update_one(
                 {"_id": ObjectId(user_id)},
                 {"$set": {
-                    "name": name,
-                    "email": email,
-                    "phone": phone,
-                    "department": department,
-                    "designation": designation,
-                    "status": status,
+                    "name": request.form.get("name"),
+                    "email": request.form.get("email"),
+                    "phone": request.form.get("phone"),
+                    "department": request.form.get("department"),
+                    "designation": request.form.get("designation"),
+                    "status": request.form.get("status"),
                     "updated_at": datetime.utcnow()
                 }}
             )
-
             flash("Employee updated successfully!", "success")
             return redirect(url_for("employee_users.view_users"))
 
@@ -156,9 +161,9 @@ def edit_user(user_id):
         return redirect(url_for("employee_users.view_users"))
 
 
-# -----------------------------
+# -------------------------------------------------------------
 # DELETE EMPLOYEE
-# -----------------------------
+# -------------------------------------------------------------
 @hr_employee_bp.route("/deleteuser/<user_id>")
 @login_required
 def delete_user(user_id):
@@ -167,13 +172,12 @@ def delete_user(user_id):
         flash("Employee deleted successfully!", "success")
     except Exception as e:
         flash(f"Error deleting employee: {e}", "danger")
-
     return redirect(url_for("employee_users.view_users"))
 
 
-# -----------------------------
+# -------------------------------------------------------------
 # REGISTER FACE (NEW)
-# -----------------------------
+# -------------------------------------------------------------
 @hr_employee_bp.route("/register_face/<user_id>")
 @login_required
 def register_face(user_id):
@@ -185,11 +189,7 @@ def register_face(user_id):
 
         folder_path = capture_faces_for_user(user_id, user["name"])
         if folder_path:
-            mongo.db.users.update_one(
-                {"_id": ObjectId(user_id)},
-                {"$set": {"face_registered": True, "updated_at": datetime.utcnow()}}
-            )
-            flash("Face registered successfully!", "success")
+            flash("Face registered successfully and stored in all locations!", "success")
         else:
             flash("No faces captured. Try again.", "warning")
 
@@ -199,27 +199,25 @@ def register_face(user_id):
     return redirect(url_for("employee_users.view_users"))
 
 
-# -----------------------------
-# VIEW FACE (NEW)
-# -----------------------------
-@hr_employee_bp.route("/view_face/<user_id>")
+# -------------------------------------------------------------
+# UPDATE / RE-REGISTER FACE (NEW)
+# -------------------------------------------------------------
+@hr_employee_bp.route("/update_face/<user_id>")
 @login_required
-def view_face(user_id):
+def update_face(user_id):
     try:
         user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
         if not user:
             flash("Employee not found!", "danger")
             return redirect(url_for("employee_users.view_users"))
 
-        dataset_path = os.path.join("dataset", f"{user_id}_{user['name']}")
-        if not os.path.exists(dataset_path):
-            flash("No face data found. Please register first.", "warning")
-            return redirect(url_for("employee_users.view_users"))
-
-        # List captured images for preview
-        images = [f for f in os.listdir(dataset_path) if f.endswith(".jpg") or f.endswith(".png")]
-        return render_template("hr/viewFace.html", user=user, images=images, folder=dataset_path)
+        folder_path = capture_faces_for_user(user_id, user["name"])
+        if folder_path:
+            flash("Face data updated successfully across dataset, pkl, and DB!", "success")
+        else:
+            flash("No faces captured during update.", "warning")
 
     except Exception as e:
-        flash(f"Error viewing face data: {e}", "danger")
-        return redirect(url_for("employee_users.view_users"))
+        flash(f"Error updating face: {e}", "danger")
+
+    return redirect(url_for("employee_users.view_users"))

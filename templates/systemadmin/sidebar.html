@@ -54,13 +54,13 @@
                 </a>
             </li>
 
-            <li class="dropdown {% if request.endpoint == 'roles.viewroles' %}active{% endif %}">
+            <li class="dropdown {% if request.endpoint == 'roles.view_roles' %}active{% endif %}">
                 <a href="{{ url_for('roles.view_roles') }}" class="nav-link">
                     <i data-feather="user"></i><span>Roles</span>
                 </a>
             </li>
 
-            <li class="dropdown {% if request.endpoint == 'institutes.viewinstitutes' %}active{% endif %}">
+            <li class="dropdown {% if request.endpoint == 'institutes.view_institutes' %}active{% endif %}">
                 <a href="{{ url_for('institutes.view_institutes') }}" class="nav-link">
                     <i data-feather="briefcase"></i><span>Institute</span>
                 </a>
