@@ -3,7 +3,7 @@ utils/face_utils.py
 ---------------------------------
 Handles face registration, encoding, recognition, and automatic attendance marking.
 Stores data in:
-1️⃣ dataset/ (images)
+1️⃣ dataset/ (raw face images)
 2️⃣ encodings.pkl (binary encodings)
 3️⃣ MongoDB (metadata + registered flag)
 """
@@ -29,8 +29,8 @@ FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_fronta
 # -------------------------------------------------------------
 def capture_faces_for_user(user_id, user_name, num_samples=5):
     """
-    Captures multiple face images from the webcam,
-    saves them in dataset/, and encodes & stores them.
+    Captures multiple face images from webcam and saves them in dataset/.
+    Then encodes and stores data in all formats.
     """
     try:
         os.makedirs(DATASET_DIR, exist_ok=True)
@@ -39,7 +39,7 @@ def capture_faces_for_user(user_id, user_name, num_samples=5):
 
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            print("[ERROR] Camera not detected or cannot be opened.")
+            print("[ERROR] Camera not found or cannot be opened.")
             return None
 
         count = 0
@@ -48,7 +48,7 @@ def capture_faces_for_user(user_id, user_name, num_samples=5):
         while True:
             ret, frame = cap.read()
             if not ret:
-                print("[ERROR] Frame capture failed.")
+                print("[ERROR] Failed to capture frame.")
                 break
 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -57,8 +57,7 @@ def capture_faces_for_user(user_id, user_name, num_samples=5):
             for (x, y, w, h) in faces:
                 count += 1
                 face_crop = gray[y:y + h, x:x + w]
-                img_name = f"{user_name}_{user_id}_{count}.jpg"
-                img_path = os.path.join(user_folder, img_name)
+                img_path = os.path.join(user_folder, f"{user_name}_{user_id}_{count}.jpg")
                 cv2.imwrite(img_path, face_crop)
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 cv2.putText(frame, f"{count}/{num_samples}", (x, y - 10),
@@ -76,7 +75,7 @@ def capture_faces_for_user(user_id, user_name, num_samples=5):
             encode_and_store_face(user_id, user_name, user_folder)
             return user_folder
         else:
-            print("[WARN] No faces captured. Try again.")
+            print("[WARN] No faces captured.")
             return None
 
     except Exception as e:
@@ -85,52 +84,46 @@ def capture_faces_for_user(user_id, user_name, num_samples=5):
 
 
 # -------------------------------------------------------------
-# 2️⃣ Encode faces and store data in all 3 locations
+# 2️⃣ Encode faces and store data in 3 locations
 # -------------------------------------------------------------
 def encode_and_store_face(user_id, user_name, user_folder):
     """Encodes user's face data and stores in dataset, .pkl, and MongoDB."""
     try:
-        all_faces = []
-        image_paths = []
-
-        print("[INFO] Encoding faces...")
-
         if not os.path.exists(user_folder):
             print(f"[ERROR] Folder not found: {user_folder}")
             return False
+
+        all_faces = []
+        image_paths = []
+
+        print("[INFO] Processing and encoding images...")
 
         for file in os.listdir(user_folder):
             if file.lower().endswith((".jpg", ".png")):
                 path = os.path.join(user_folder, file)
                 img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
                 if img is not None:
-                    # ✅ Resize to fixed 100x100 to standardize shape
-                    img_resized = cv2.resize(img, (100, 100))
+                    img_resized = cv2.resize(img, (100, 100))  # ✅ Fixed shape
                     all_faces.append(img_resized.flatten())
                     image_paths.append(path)
                 else:
-                    print(f"[WARN] Could not read image: {path}")
+                    print(f"[WARN] Failed to read image: {path}")
 
         if not all_faces:
-            print("[ERROR] No valid face images to encode.")
+            print("[ERROR] No valid images found for encoding.")
             return False
 
-        # ✅ Compute average encoding vector (now uniform length)
+        # ✅ Average encoding (uniform shape now)
         avg_encoding = np.mean(all_faces, axis=0)
-        print(f"[SUCCESS] Face encoding generated (length={len(avg_encoding)}).")
+        print(f"[SUCCESS] Face encoding created for {user_name} (length={len(avg_encoding)})")
 
         # Step 1️⃣ Save encoding to .pkl
-        print("[INFO] Updating global encodings file...")
         encodings = load_encodings()
-        encodings[user_id] = {
-            "name": user_name,
-            "encoding": avg_encoding
-        }
+        encodings[user_id] = {"name": user_name, "encoding": avg_encoding}
         save_encodings(encodings)
-        print(f"[SUCCESS] Encoding stored in {ENCODINGS_FILE}.")
+        print(f"[SUCCESS] Stored encoding in {ENCODINGS_FILE}")
 
-        # Step 2️⃣ Store metadata in MongoDB
-        print("[INFO] Updating MongoDB with face info...")
+        # Step 2️⃣ Store face info in MongoDB
         face_info = {
             "dataset_path": user_folder,
             "encoding_file": ENCODINGS_FILE,
@@ -149,11 +142,11 @@ def encode_and_store_face(user_id, user_name, user_folder):
         )
 
         if result.modified_count > 0:
-            print(f"[SUCCESS] MongoDB updated for user {user_name}.")
+            print(f"[SUCCESS] MongoDB updated for {user_name}")
         else:
-            print(f"[WARN] MongoDB update may have failed for {user_name}.")
+            print(f"[WARN] MongoDB update may not have modified document for {user_name}")
 
-        print(f"[INFO] All face data stored successfully for {user_name}.")
+        print("[INFO] All face data stored successfully.")
         return True
 
     except Exception as e:
@@ -169,17 +162,17 @@ def save_encodings(encodings):
     try:
         with open(ENCODINGS_FILE, "wb") as f:
             pickle.dump(encodings, f)
-        print(f"[SUCCESS] Encodings file saved: {ENCODINGS_FILE}")
+        print(f"[SUCCESS] Encodings saved to {ENCODINGS_FILE}")
     except Exception as e:
         print(f"[ERROR] Failed to save encodings.pkl: {e}")
 
 
 def load_encodings():
     """Load all user encodings from encodings.pkl"""
-    if not os.path.exists(ENCODINGS_FILE):
-        print("[INFO] No encodings.pkl found. Creating new one.")
-        return {}
     try:
+        if not os.path.exists(ENCODINGS_FILE):
+            print("[INFO] No encodings.pkl found. Creating new file.")
+            return {}
         with open(ENCODINGS_FILE, "rb") as f:
             return pickle.load(f)
     except Exception as e:
@@ -191,6 +184,7 @@ def load_encodings():
 # 4️⃣ Check if user has registered face
 # -------------------------------------------------------------
 def is_face_registered(user_id):
+    """Check from MongoDB if user has registered a face."""
     try:
         user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
         return bool(user and user.get("face_registered", False))
@@ -200,10 +194,10 @@ def is_face_registered(user_id):
 
 
 # -------------------------------------------------------------
-# 5️⃣ Recognize faces and mark attendance (fast from .pkl)
+# 5️⃣ Recognize faces and mark attendance (from .pkl)
 # -------------------------------------------------------------
 def recognize_and_mark_attendance():
-    """Open webcam, recognize registered users, and mark attendance."""
+    """Opens webcam, compares live faces against stored encodings, and marks attendance."""
     try:
         encodings = load_encodings()
         if not encodings:
@@ -212,26 +206,26 @@ def recognize_and_mark_attendance():
 
         cap = cv2.VideoCapture(0)
         if not cap.isOpened():
-            print("[ERROR] Cannot open camera.")
+            print("[ERROR] Camera could not be opened.")
             return
 
-        print("[INFO] Starting real-time recognition (Press ESC to exit)...")
+        print("[INFO] Starting live recognition (Press ESC to exit)...")
 
         while True:
             ret, frame = cap.read()
             if not ret:
-                print("[ERROR] Frame capture failed.")
+                print("[ERROR] Failed to read frame from camera.")
                 break
 
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             faces = FACE_CASCADE.detectMultiScale(gray, 1.3, 5)
 
             for (x, y, w, h) in faces:
-                face_crop = gray[y:y + h, x:x + w].flatten()
+                face_crop = cv2.resize(gray[y:y + h, x:x + w], (100, 100)).flatten()
 
                 matched_user = None
                 min_dist = float("inf")
-                threshold = 3500.0
+                threshold = 3500.0  # tune based on dataset
 
                 for uid, data in encodings.items():
                     dist = np.linalg.norm(data["encoding"] - face_crop)
@@ -256,7 +250,7 @@ def recognize_and_mark_attendance():
 
         cap.release()
         cv2.destroyAllWindows()
-        print("[INFO] Attendance session ended successfully.")
+        print("[INFO] Attendance session completed.")
 
     except Exception as e:
         print(f"[ERROR] recognize_and_mark_attendance failed: {e}")
@@ -266,14 +260,13 @@ def recognize_and_mark_attendance():
 # 6️⃣ Mark attendance in MongoDB
 # -------------------------------------------------------------
 def mark_attendance_in_db(user_id, user_name):
-    """Insert attendance record only once per day."""
+    """Inserts attendance record only once per day."""
     try:
         today = datetime.utcnow().strftime("%Y-%m-%d")
         existing = mongo.db.attendances.find_one({
             "user_id": user_id,
             "date": today
         })
-
         if existing:
             return  # Skip duplicates
 
@@ -287,6 +280,7 @@ def mark_attendance_in_db(user_id, user_name):
             "created_at": now,
             "updated_at": now
         })
-        print(f"[SUCCESS] Attendance marked for {user_name}.")
+
+        print(f"[SUCCESS] Attendance marked for {user_name} on {today}.")
     except Exception as e:
         print(f"[ERROR] mark_attendance_in_db failed: {e}")
