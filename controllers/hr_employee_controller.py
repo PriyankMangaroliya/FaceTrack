@@ -227,10 +227,17 @@ def video_feed():
 @login_required
 def capture_face_action(user_id, action):
     user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        flash("Employee not found!", "danger")
+        return redirect(url_for("employee_users.view_users"))
+
     folder_path = capture_faces_for_user(user_id, user["name"])
 
-    if folder_path:
-        flash("Face registered successfully!" if action == "register" else "Face updated successfully!", "success")
+    if folder_path == "duplicate":
+        flash("This face already exists in the system. Duplicate registration blocked.", "warning")
+    elif folder_path:
+        msg = "Face registered successfully!" if action == "register" else "Face updated successfully!"
+        flash(msg, "success")
     else:
         flash("No faces captured. Try again.", "warning")
 

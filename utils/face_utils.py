@@ -93,7 +93,7 @@ def capture_faces_for_user(user_id, user_name, num_samples=5):
 # 2️⃣ Encode faces and store data in 3 locations
 # -------------------------------------------------------------
 def encode_and_store_face(user_id, user_name, user_folder):
-    """Encodes user's face data and stores in dataset, .pkl, and MongoDB."""
+    """Encodes user's face data and stores in dataset, .pkl, and MongoDB with duplicate-face check."""
     try:
         if not os.path.exists(user_folder):
             print(f"[ERROR] Folder not found: {user_folder}")
@@ -111,7 +111,6 @@ def encode_and_store_face(user_id, user_name, user_folder):
                 if img is not None:
                     img_resized = cv2.resize(img, (100, 100))
                     all_faces.append(img_resized.flatten())
-                    # ✅ Normalize path for web (replace '\' with '/')
                     web_path = path.replace("\\", "/")
                     image_paths.append(web_path)
 
@@ -119,25 +118,37 @@ def encode_and_store_face(user_id, user_name, user_folder):
             print("[ERROR] No valid images found for encoding.")
             return False
 
-        # ✅ Average encoding (uniform shape now)
+        # ✅ Compute new encoding (average vector)
         avg_encoding = np.mean(all_faces, axis=0)
-        print(f"[SUCCESS] Face encoding created for {user_name} (length={len(avg_encoding)})")
+        print(f"[SUCCESS] Encoding generated for {user_name} (length={len(avg_encoding)})")
 
-        # Step 1️⃣ Save encoding to .pkl
+        # ✅ Load existing encodings for duplicate check
         encodings = load_encodings()
+        threshold = 2500.0  # smaller = stricter similarity threshold
+
+        for existing_uid, data in encodings.items():
+            if existing_uid == user_id:
+                continue  # Skip self (update case)
+
+            existing_encoding = np.array(data["encoding"])
+            dist = np.linalg.norm(existing_encoding - avg_encoding)
+            if dist < threshold:
+                print(f"[DUPLICATE] Similar face found! User: {data['name']} | Distance={dist}")
+                print("[ACTION] Registration aborted due to duplicate face.")
+                return "duplicate"
+
+        # ✅ If not duplicate, save normally
         encodings[user_id] = {"name": user_name, "encoding": avg_encoding}
         save_encodings(encodings)
         print(f"[SUCCESS] Stored encoding in {ENCODINGS_FILE}")
 
-
-        # Step 2️⃣ Store face info in MongoDB
+        # ✅ Store in MongoDB
         relative_folder = os.path.relpath(user_folder, "static").replace("\\", "/")
-
         face_info = {
             "dataset_path": relative_folder,
-            "encoding_data": avg_encoding.tolist(),  # serialized numpy array
+            "encoding_data": avg_encoding.tolist(),
             "encoding_shape": list(avg_encoding.shape),
-            "images": image_paths,  # already relative paths
+            "images": image_paths,
             "last_updated": datetime.utcnow()
         }
 
@@ -150,7 +161,7 @@ def encode_and_store_face(user_id, user_name, user_folder):
             }}
         )
 
-        print("[INFO] All face data stored successfully.")
+        print(f"[INFO] Face data stored successfully for {user_name}.")
         return True
 
     except Exception as e:
