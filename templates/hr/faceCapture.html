@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" name="viewport">
+    <title>FaceTrack - HR | Face Capture</title>
+
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/app.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/bundles/datatables/datatables.min.css') }}">
+    <link rel="stylesheet"
+          href="{{ url_for('static', filename='assets/bundles/datatables/DataTables-1.10.16/css/dataTables.bootstrap4.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/components.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='assets/img/favicon.ico') }}">
+</head>
+
+<body>
+<div class="loader"></div>
+<div id="app">
+    <div class="main-wrapper main-wrapper-1">
+
+        <!-- Sidebar -->
+        {% include 'hr/sidebar.html' %}
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <section class="section">
+                <div class="section-body">
+
+                    <div class="container mt-4 text-center">
+                        <h4>
+                            {% if action == "register" %}
+                                Register Face for {{ user.name }}
+                            {% else %}
+                                Update Face for {{ user.name }}
+                            {% endif %}
+                        </h4>
+                        <br>
+
+                        <!-- Old Faces Preview -->
+                        {% if old_images %}
+                            <div class="mb-3">
+                                <h6>Previous Registered Faces:</h6>
+                                {% for img in old_images[:3] %}
+                                    <img src="{{ '/' + img }}" alt="Not Open" width="120" height="120" class="rounded m-1"/>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <!-- Live Camera Feed -->
+                        <div>
+                            <img src="{{ url_for('employee_users.video_feed', user_id=user._id) }}"
+                                 width="300" height="300"
+                                 style="border:2px solid #007bff; border-radius:8px;">
+                        </div>
+
+                        <br>
+                        <a href="{{ url_for('employee_users.capture_face_action', user_id=user._id, action=action) }}"
+                           class="btn btn-success">Capture & Save</a>
+
+                        <a href="{{ url_for('employee_users.view_users') }}" class="btn btn-secondary">Back</a>
+                    </div>
+
+
+                </div>
+            </section>
+
+            {% include 'hr/settings.html' %}
+        </div>
+    </div>
+</div>
+
+<!-- JS Files -->
+<script src="{{ url_for('static', filename='assets/js/app.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/bundles/datatables/datatables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/bundles/datatables/DataTables-1.10.16/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/page/datatables.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/scripts.js') }}"></script>
+</body>
+</html>

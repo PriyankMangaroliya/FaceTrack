@@ -284,3 +284,29 @@ def mark_attendance_in_db(user_id, user_name):
         print(f"[SUCCESS] Attendance marked for {user_name} on {today}.")
     except Exception as e:
         print(f"[ERROR] mark_attendance_in_db failed: {e}")
+
+
+# -------------------------------------------------------------
+# 7️⃣ Stream live camera feed (for web preview)
+# -------------------------------------------------------------
+def generate_camera_frames():
+    """Generator function that yields live webcam frames as JPEG bytes."""
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("[ERROR] Cannot open camera for streaming.")
+        return
+
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
+
+        # Encode frame as JPEG
+        _, buffer = cv2.imencode(".jpg", frame)
+        frame_bytes = buffer.tobytes()
+
+        # Yield as multipart stream
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+    cap.release()
