@@ -3,7 +3,7 @@ utils/face_utils.py
 ---------------------------------
 Handles face registration, encoding, recognition, and automatic attendance marking.
 Stores data in:
-1️⃣ dataset/ (raw face images)
+1️⃣ static/dataset/ (raw face images)
 2️⃣ encodings.pkl (binary encodings)
 3️⃣ MongoDB (metadata + registered flag)
 """
@@ -19,7 +19,7 @@ from utils.db import mongo
 # ==============================
 # GLOBAL CONFIG
 # ==============================
-DATASET_DIR = "dataset"
+DATASET_DIR = os.path.join("static", "dataset")
 ENCODINGS_FILE = "encodings.pkl"
 FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
@@ -29,12 +29,18 @@ FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_fronta
 # -------------------------------------------------------------
 def capture_faces_for_user(user_id, user_name, num_samples=5):
     """
-    Captures multiple face images from webcam and saves them in dataset/.
+    Captures multiple face images from webcam and saves them in static/dataset/.
     Then encodes and stores data in all formats.
     """
     try:
+        # ✅ Save inside static/dataset/
+        DATASET_DIR = os.path.join("static", "dataset")
         os.makedirs(DATASET_DIR, exist_ok=True)
-        user_folder = os.path.join(DATASET_DIR, f"{user_name}_{user_id}")
+
+        # ✅ Safe folder name (no spaces)
+        safe_name = user_name.replace(" ", "_")
+        user_folder = os.path.join(DATASET_DIR, f"{safe_name}_{user_id}")
+
         os.makedirs(user_folder, exist_ok=True)
 
         cap = cv2.VideoCapture(0)
@@ -103,11 +109,11 @@ def encode_and_store_face(user_id, user_name, user_folder):
                 path = os.path.join(user_folder, file)
                 img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
                 if img is not None:
-                    img_resized = cv2.resize(img, (100, 100))  # ✅ Fixed shape
+                    img_resized = cv2.resize(img, (100, 100))
                     all_faces.append(img_resized.flatten())
-                    image_paths.append(path)
-                else:
-                    print(f"[WARN] Failed to read image: {path}")
+                    # ✅ Normalize path for web (replace '\' with '/')
+                    web_path = path.replace("\\", "/")
+                    image_paths.append(web_path)
 
         if not all_faces:
             print("[ERROR] No valid images found for encoding.")
@@ -123,16 +129,19 @@ def encode_and_store_face(user_id, user_name, user_folder):
         save_encodings(encodings)
         print(f"[SUCCESS] Stored encoding in {ENCODINGS_FILE}")
 
+
         # Step 2️⃣ Store face info in MongoDB
+        relative_folder = os.path.relpath(user_folder, "static").replace("\\", "/")
+
         face_info = {
-            "dataset_path": user_folder,
-            "encoding_file": ENCODINGS_FILE,
-            "encoding_shape": avg_encoding.shape,
-            "images": image_paths,
+            "dataset_path": relative_folder,
+            "encoding_data": avg_encoding.tolist(),  # serialized numpy array
+            "encoding_shape": list(avg_encoding.shape),
+            "images": image_paths,  # already relative paths
             "last_updated": datetime.utcnow()
         }
 
-        result = mongo.db.users.update_one(
+        mongo.db.users.update_one(
             {"_id": ObjectId(user_id)},
             {"$set": {
                 "face_data": face_info,
@@ -140,11 +149,6 @@ def encode_and_store_face(user_id, user_name, user_folder):
                 "updated_at": datetime.utcnow()
             }}
         )
-
-        if result.modified_count > 0:
-            print(f"[SUCCESS] MongoDB updated for {user_name}")
-        else:
-            print(f"[WARN] MongoDB update may not have modified document for {user_name}")
 
         print("[INFO] All face data stored successfully.")
         return True
@@ -158,7 +162,6 @@ def encode_and_store_face(user_id, user_name, user_folder):
 # 3️⃣ Save and Load Encodings (.pkl)
 # -------------------------------------------------------------
 def save_encodings(encodings):
-    """Save all user encodings to encodings.pkl"""
     try:
         with open(ENCODINGS_FILE, "wb") as f:
             pickle.dump(encodings, f)
@@ -168,10 +171,8 @@ def save_encodings(encodings):
 
 
 def load_encodings():
-    """Load all user encodings from encodings.pkl"""
     try:
         if not os.path.exists(ENCODINGS_FILE):
-            print("[INFO] No encodings.pkl found. Creating new file.")
             return {}
         with open(ENCODINGS_FILE, "rb") as f:
             return pickle.load(f)
@@ -181,7 +182,29 @@ def load_encodings():
 
 
 # -------------------------------------------------------------
-# 4️⃣ Check if user has registered face
+# 4️⃣ Stream Camera Feed (for live preview)
+# -------------------------------------------------------------
+def generate_camera_frames():
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print("[ERROR] Cannot open camera for streaming.")
+        return
+
+    while True:
+        success, frame = cap.read()
+        if not success:
+            break
+
+        _, buffer = cv2.imencode(".jpg", frame)
+        frame_bytes = buffer.tobytes()
+
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+    cap.release()
+
+# -------------------------------------------------------------
+# 5️⃣ Check if user has registered face
 # -------------------------------------------------------------
 def is_face_registered(user_id):
     """Check from MongoDB if user has registered a face."""
@@ -194,7 +217,7 @@ def is_face_registered(user_id):
 
 
 # -------------------------------------------------------------
-# 5️⃣ Recognize faces and mark attendance (from .pkl)
+# 6️⃣ Recognize faces and mark attendance (from .pkl)
 # -------------------------------------------------------------
 def recognize_and_mark_attendance():
     """Opens webcam, compares live faces against stored encodings, and marks attendance."""
@@ -257,7 +280,7 @@ def recognize_and_mark_attendance():
 
 
 # -------------------------------------------------------------
-# 6️⃣ Mark attendance in MongoDB
+# 7️⃣ Mark attendance in MongoDB
 # -------------------------------------------------------------
 def mark_attendance_in_db(user_id, user_name):
     """Inserts attendance record only once per day."""
@@ -284,29 +307,3 @@ def mark_attendance_in_db(user_id, user_name):
         print(f"[SUCCESS] Attendance marked for {user_name} on {today}.")
     except Exception as e:
         print(f"[ERROR] mark_attendance_in_db failed: {e}")
-
-
-# -------------------------------------------------------------
-# 7️⃣ Stream live camera feed (for web preview)
-# -------------------------------------------------------------
-def generate_camera_frames():
-    """Generator function that yields live webcam frames as JPEG bytes."""
-    cap = cv2.VideoCapture(0)
-    if not cap.isOpened():
-        print("[ERROR] Cannot open camera for streaming.")
-        return
-
-    while True:
-        success, frame = cap.read()
-        if not success:
-            break
-
-        # Encode frame as JPEG
-        _, buffer = cv2.imencode(".jpg", frame)
-        frame_bytes = buffer.tobytes()
-
-        # Yield as multipart stream
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
-
-    cap.release()

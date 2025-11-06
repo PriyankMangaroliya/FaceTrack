@@ -1,9 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response, send_from_directory
 from bson import ObjectId
 from utils.db import mongo
 from utils.auth import login_required
 from werkzeug.security import generate_password_hash
 from datetime import datetime
+import os
 
 # Import face utilities
 from utils.face_utils import capture_faces_for_user, is_face_registered, generate_camera_frames
@@ -188,7 +189,7 @@ def register_face(user_id):
         return redirect(url_for("employee_users.view_users"))
 
     # Render live view page
-    return render_template("hr/faceCapture.html", user=user, action="register")
+    return render_template("hr/faceCapture.html", user=user, action="register", old_images=[])
 
 
 # -----------------------------
@@ -203,9 +204,7 @@ def update_face(user_id):
         return redirect(url_for("employee_users.view_users"))
 
     # Fetch old image preview (first face)
-    old_images = []
-    if user.get("face_data", {}).get("images"):
-        old_images = user["face_data"]["images"]
+    old_images = user.get("face_data", {}).get("images", [])
 
     print(old_images)
 
@@ -215,31 +214,23 @@ def update_face(user_id):
 # -----------------------------
 # STREAM CAMERA FEED
 # -----------------------------
-@hr_employee_bp.route("/video_feed/<user_id>")
+@hr_employee_bp.route("/video_feed")
 @login_required
-def video_feed(user_id):
-    """Stream live webcam feed for registration preview."""
+def video_feed():
     return Response(generate_camera_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
-# -----------------------------
-# ACTUAL FACE CAPTURE TRIGGER
-# -----------------------------
+# -------------------------------------------------------------
+# CAPTURE & SAVE
+# -------------------------------------------------------------
 @hr_employee_bp.route("/capture_face/<user_id>/<action>")
 @login_required
 def capture_face_action(user_id, action):
-    """Captures faces and stores them when triggered."""
     user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
-    if not user:
-        flash("Employee not found!", "danger")
-        return redirect(url_for("employee_users.view_users"))
-
     folder_path = capture_faces_for_user(user_id, user["name"])
+
     if folder_path:
-        if action == "register":
-            flash("Face registered successfully!", "success")
-        else:
-            flash("Face updated successfully!", "success")
+        flash("Face registered successfully!" if action == "register" else "Face updated successfully!", "success")
     else:
         flash("No faces captured. Try again.", "warning")
 
