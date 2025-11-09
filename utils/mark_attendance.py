@@ -179,12 +179,12 @@ def mark_face_recognition():
                     label, color = f"{name} ({int(conf * 100)}%)", (0, 255, 0)
 
                     if uid not in recognized_users:
-                        print(f"[🎯 RECOGNIZED] {name} | Distance={min_dist:.2f}")
+                        print(f"[RECOGNIZED] {name} | Distance={min_dist:.2f}")
                         recognized_users.add(uid)
 
-                # ✅ Display accuracy in CMD live
+                # Display accuracy in CMD live
                 accuracy = (correct_matches / total_tests) * 100 if total_tests > 0 else 0
-                print(f"[📊 Accuracy Update] {accuracy:.2f}% ({correct_matches}/{total_tests})", end="\r")
+                print(f"[Accuracy Update] {accuracy:.2f}% ({correct_matches}/{total_tests})", end="\r")
 
                 # Draw bounding box
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
@@ -197,13 +197,13 @@ def mark_face_recognition():
 
         cap.release()
         cv2.destroyAllWindows()
-        print("\n\n[ℹ️ INFO] Attendance marking session ended.")
+        print("\n\n[INFO] Attendance marking session ended.")
         if total_tests > 0:
             final_acc = (correct_matches / total_tests) * 100
-            print(f"[✅ Final Accuracy] {final_acc:.2f}% ({correct_matches}/{total_tests})")
+            print(f"[Final Accuracy] {final_acc:.2f}% ({correct_matches}/{total_tests})")
 
     except Exception as e:
-        print(f"[❌ ERROR] mark_face_recognition failed: {e}")
+        print(f"[ERROR] mark_face_recognition failed: {e}")
 
 
 # -------------------------------------------------------------
