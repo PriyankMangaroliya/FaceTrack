@@ -5,7 +5,8 @@ Manual Face Recognition & Attendance Marking System
 
 ✅ Uses pre-saved encodings.pkl and MongoDB (direct connection)
 ✅ Allows multiple Check-Ins, Re-Entries, and Check-Outs per day
-✅ Shows model accuracy live in CMD
+✅ Shows live recognition accuracy & confidence
+✅ Works without dlib (pure OpenCV DNN)
 ✅ Press ESC to exit camera manually
 """
 
@@ -13,7 +14,7 @@ import os
 import cv2
 import pickle
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timezone
 from pymongo import MongoClient
 
 # ==============================
@@ -31,7 +32,7 @@ client = MongoClient("mongodb://localhost:27017/")
 db = client["AttendanceSystem"]
 
 # ==============================
-# DNN MODEL LOAD
+# LOAD DNN MODEL
 # ==============================
 if not (os.path.exists(MODEL_PROTO) and os.path.exists(MODEL_WEIGHTS)):
     raise FileNotFoundError(
@@ -46,9 +47,11 @@ CONFIDENCE_THRESHOLD = 0.6
 # FACE DETECTION (DNN)
 # -------------------------------------------------------------
 def detect_faces_dnn(frame, conf_threshold=CONFIDENCE_THRESHOLD):
+    """Detects faces using OpenCV DNN and returns bounding boxes."""
     h, w = frame.shape[:2]
-    blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0,
-                                 (300, 300), (104.0, 177.0, 123.0))
+    blob = cv2.dnn.blobFromImage(
+        cv2.resize(frame, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0)
+    )
     FACE_NET.setInput(blob)
     detections = FACE_NET.forward()
 
@@ -58,7 +61,6 @@ def detect_faces_dnn(frame, conf_threshold=CONFIDENCE_THRESHOLD):
         if confidence > conf_threshold:
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             (x1, y1, x2, y2) = box.astype("int")
-            x1, y1 = max(0, x1), max(0, y1)
             boxes.append((x1, y1, x2 - x1, y2 - y1, confidence))
     return boxes
 
@@ -68,25 +70,23 @@ def detect_faces_dnn(frame, conf_threshold=CONFIDENCE_THRESHOLD):
 # -------------------------------------------------------------
 def load_encodings():
     if not os.path.exists(ENCODINGS_FILE):
-        print("[INFO] No encodings.pkl found.")
+        print("[❌ ERROR] encodings.pkl not found.")
         return {}
-    with open(ENCODINGS_FILE, "rb") as f:
-        return pickle.load(f)
+    try:
+        with open(ENCODINGS_FILE, "rb") as f:
+            return pickle.load(f)
+    except Exception as e:
+        print(f"[ERROR] Failed to load encodings: {e}")
+        return {}
 
 
 # -------------------------------------------------------------
 # ATTENDANCE DB HANDLER
 # -------------------------------------------------------------
 def mark_attendance_in_db(user_id, user_name, gap_seconds=7200):
-    """
-    Marks attendance:
-    - First → Check-In
-    - After 2+ hours → Check-Out
-    - After 5+ minutes → Re-Entry
-    - Within 5 minutes → skip
-    """
+    """Marks Check-In / Check-Out / Re-Entry / Skips duplicate"""
     try:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         today = now.strftime("%Y-%m-%d")
 
         last_entry = db.attendances.find_one(
@@ -96,7 +96,7 @@ def mark_attendance_in_db(user_id, user_name, gap_seconds=7200):
 
         status = "Check-In"
         if last_entry:
-            diff = (now - last_entry["created_at"]).seconds
+            diff = (now - last_entry["created_at"]).total_seconds()
             if diff > gap_seconds:
                 status = "Check-Out"
             elif diff > 300:
@@ -110,7 +110,7 @@ def mark_attendance_in_db(user_id, user_name, gap_seconds=7200):
             "date": today,
             "time": now.strftime("%H:%M:%S"),
             "status": status,
-            "marked_by": "System",
+            "marked_by": "Manual Recognition",
             "created_at": now,
             "updated_at": now
         })
@@ -124,18 +124,19 @@ def mark_attendance_in_db(user_id, user_name, gap_seconds=7200):
 
 
 # -------------------------------------------------------------
-# MAIN FACE RECOGNITION WITH ACCURACY DISPLAY
+# MANUAL FACE RECOGNITION + ACCURACY DISPLAY
 # -------------------------------------------------------------
 def mark_face_recognition():
+    """Manual recognition with live accuracy display"""
     try:
         encodings = load_encodings()
         if not encodings:
-            print("[❌ ERROR] No encodings found. Please register at least one user.")
+            print("[❌ ERROR] No encodings available. Register faces first.")
             return
 
         cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         if not cap.isOpened():
-            print("[❌ ERROR] Could not access the camera.")
+            print("[❌ ERROR] Cannot open camera.")
             return
 
         print("\n[🎥 INFO] Starting Manual Attendance Recognition...")
@@ -145,10 +146,12 @@ def mark_face_recognition():
         correct_matches = 0
         recognized_users = set()
 
+        threshold = 3500.0
+
         while True:
             ret, frame = cap.read()
             if not ret:
-                print("[⚠️ WARN] Failed to capture frame from camera.")
+                print("[⚠️ WARN] Frame capture failed.")
                 break
 
             faces = detect_faces_dnn(frame)
@@ -161,7 +164,6 @@ def mark_face_recognition():
                 face_enc = cv2.resize(gray, (100, 100)).flatten()
 
                 matched_user, min_dist = None, float("inf")
-                threshold = 3500.0
 
                 for uid, data in encodings.items():
                     dist = np.linalg.norm(data["encoding"] - face_enc)
@@ -170,44 +172,48 @@ def mark_face_recognition():
                         min_dist = dist
 
                 total_tests += 1
-                color, label = (0, 0, 255), f"Unknown ({int(conf * 100)}%)"
+                color = (0, 0, 255)
+                label = f"Unknown ({int(conf * 100)}%)"
 
                 if matched_user:
                     uid, name = matched_user
-                    mark_attendance_in_db(uid, name)
+                    confidence = max(0, min(100, 100 - (min_dist / threshold * 100)))
                     correct_matches += 1
-                    label, color = f"{name} ({int(conf * 100)}%)", (0, 255, 0)
+                    label = f"{name} ({confidence:.1f}%)"
+                    color = (0, 255, 0)
 
                     if uid not in recognized_users:
-                        print(f"[RECOGNIZED] {name} | Distance={min_dist:.2f}")
+                        print(f"[RECOGNIZED] {name} | Distance={min_dist:.2f} | Accuracy={confidence:.2f}%")
+                        mark_attendance_in_db(uid, name)
                         recognized_users.add(uid)
 
-                # Display accuracy in CMD live
+                # Update accuracy live
                 accuracy = (correct_matches / total_tests) * 100 if total_tests > 0 else 0
-                print(f"[Accuracy Update] {accuracy:.2f}% ({correct_matches}/{total_tests})", end="\r")
+                print(f"[Live Accuracy] {accuracy:.2f}% ({correct_matches}/{total_tests})", end="\r")
 
-                # Draw bounding box
+                # Draw result
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
                 cv2.putText(frame, label, (x, y - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-            cv2.imshow("Mark Attendance - Press ESC to Stop", frame)
+            cv2.imshow("Manual Attendance Recognition", frame)
             if cv2.waitKey(1) == 27:  # ESC
                 break
 
         cap.release()
         cv2.destroyAllWindows()
-        print("\n\n[INFO] Attendance marking session ended.")
+        print("\n\n[INFO] Attendance session ended.")
+
         if total_tests > 0:
             final_acc = (correct_matches / total_tests) * 100
-            print(f"[Final Accuracy] {final_acc:.2f}% ({correct_matches}/{total_tests})")
+            print(f"[Final Model Accuracy] {final_acc:.2f}% ({correct_matches}/{total_tests})")
 
     except Exception as e:
         print(f"[ERROR] mark_face_recognition failed: {e}")
 
 
 # -------------------------------------------------------------
-# MAIN ENTRY POINT
+# MAIN ENTRY
 # -------------------------------------------------------------
 if __name__ == "__main__":
     mark_face_recognition()
