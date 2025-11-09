@@ -96,7 +96,6 @@ def capture_faces_for_user(user_id, user_name, num_samples=5):
                 img_path = os.path.join(user_folder, f"{safe_name}_{user_id}_{count}.jpg")
                 cv2.imwrite(img_path, gray)
 
-                # draw box
                 cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                 cv2.putText(frame, f"{count}/{num_samples}", (x, y - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
@@ -163,7 +162,6 @@ def encode_and_store_face(user_id, user_name, user_folder):
         encodings[user_id] = {"name": user_name, "encoding": avg_encoding}
         save_encodings(encodings)
 
-        # Store in DB
         rel_path = os.path.relpath(user_folder, "static").replace("\\", "/")
         face_info = {
             "dataset_path": rel_path,
@@ -231,7 +229,6 @@ def generate_camera_frames():
         if not success:
             break
 
-        # Skip every 2nd frame → smoother output
         frame_count += 1
         if frame_count % frame_skip != 0:
             continue
@@ -257,131 +254,15 @@ def is_face_registered(user_id):
         return False
 
 
-# # -------------------------------------------------------------
-# # 6️⃣ AUTO FACE RECOGNITION & ATTENDANCE (STABLE VERSION)
-# # -------------------------------------------------------------
-# def recognize_and_mark_attendance(auto_start=True):
-#     """
-#     Runs a real-time loop for face recognition and marks attendance.
-#     Allows multiple Check-Ins / Check-Outs per day.
-#     ✅ Works reliably on Windows with CAP_DSHOW
-#     ✅ Marks attendance automatically in MongoDB
-#     """
-#     try:
-#         encodings = load_encodings()
-#         if not encodings:
-#             print("[ERROR] No face encodings found — please register at least one user.")
-#             return
-#
-#         # Use CAP_DSHOW for faster and more reliable camera init (Windows)
-#         cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-#         if not cap.isOpened():
-#             print("[ERROR] Camera not accessible. Try another device index or restart system.")
-#             return
-#
-#         print("[INFO] 🔍 Starting auto attendance system... (Press ESC to exit)")
-#         mark_interval = 60  # avoid duplicate marking within 1 minute
-#         check_gap_seconds = 7200  # 2 hours for Check-Out logic
-#         last_marked = {}
-#
-#         while True:
-#             ret, frame = cap.read()
-#             if not ret:
-#                 print("[WARN] Failed to read frame from camera.")
-#                 break
-#
-#             # Detect faces
-#             faces = detect_faces_dnn(frame)
-#             for (x, y, w, h, conf) in faces:
-#                 face_crop = frame[y:y + h, x:x + w]
-#                 if face_crop.size == 0:
-#                     continue
-#
-#                 gray = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
-#                 face_enc = cv2.resize(gray, (100, 100)).flatten()
-#
-#                 matched_user, min_dist = None, float("inf")
-#                 threshold = 3500.0
-#
-#                 for uid, data in encodings.items():
-#                     dist = np.linalg.norm(data["encoding"] - face_enc)
-#                     if dist < threshold and dist < min_dist:
-#                         matched_user = (uid, data["name"])
-#                         min_dist = dist
-#
-#                 color = (0, 0, 255)
-#                 label = "Unknown"
-#
-#                 if matched_user:
-#                     uid, name = matched_user
-#                     now = datetime.utcnow()
-#                     if uid not in last_marked or (now - last_marked[uid]).seconds > mark_interval:
-#                         success = mark_attendance_in_db(uid, name, check_gap_seconds)
-#                         if success:
-#                             last_marked[uid] = now
-#                     color = (0, 255, 0)
-#                     label = f"{name} ({int(conf * 100)}%)"
-#
-#                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
-#                 cv2.putText(frame, label, (x, y - 10),
-#                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-#
-#             cv2.imshow("Auto Attendance System", frame)
-#             if cv2.waitKey(1) == 27:  # ESC key
-#                 break
-#
-#         cap.release()
-#         cv2.destroyAllWindows()
-#         print("[INFO] Attendance session closed.")
-#
-#     except Exception as e:
-#         print(f"[ERROR] recognize_and_mark_attendance failed: {e}")
-#
-#
-# # -------------------------------------------------------------
-# # 7️⃣ ATTENDANCE DATABASE HANDLER
-# # -------------------------------------------------------------
-# def mark_attendance_in_db(user_id, user_name, gap_seconds=7200):
-#     """
-#     Marks 'Check-In', 'Check-Out', or 'Re-Entry' based on time gap.
-#     ✅ Multiple attendance entries per day supported
-#     ✅ Returns True when new entry created
-#     """
-#     try:
-#         now = datetime.utcnow()
-#         today = now.strftime("%Y-%m-%d")
-#
-#         # Find last entry of the day for this user
-#         last_entry = mongo.db.attendances.find_one(
-#             {"user_id": user_id, "date": today},
-#             sort=[("created_at", -1)]
-#         )
-#
-#         status = "Check-In"
-#         if last_entry:
-#             diff = (now - last_entry["created_at"]).seconds
-#             if diff > gap_seconds:
-#                 status = "Check-Out"
-#             elif diff > 300:  # seen again after 5+ mins
-#                 status = "Re-Entry"
-#             else:
-#                 # Skip duplicates within 5 minutes
-#                 return False
-#
-#         mongo.db.attendances.insert_one({
-#             "user_id": user_id,
-#             "name": user_name,
-#             "date": today,
-#             "time": now.strftime("%H:%M:%S"),
-#             "status": status,
-#             "marked_by": "System (Auto)",
-#             "created_at": now,
-#             "updated_at": now
-#         })
-#
-#         print(f"[ATTENDANCE ✅] {user_name} | {status} | {today} {now.strftime('%H:%M:%S')}")
-#         return True
-#
-#     except Exception as e:
-#         print(f"[ERROR] mark_attendance_in_db failed: {e}")
-#         return False
+# -------------------------------------------------------------
+# EXPORTS (used by mark_attendance.py and HR module)
+# -------------------------------------------------------------
+__all__ = [
+    "detect_faces_dnn",
+    "capture_faces_for_user",
+    "encode_and_store_face",
+    "save_encodings",
+    "load_encodings",
+    "generate_camera_frames",
+    "is_face_registered"
+]
