@@ -1,12 +1,11 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response, send_from_directory
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, Response
 from bson import ObjectId
 from utils.db import mongo
 from utils.auth import login_required
 from werkzeug.security import generate_password_hash
 from datetime import datetime
-import os
 
-# Import face utilities
+# Import face utilities (DNN-based)
 from utils.face_utils import capture_faces_for_user, is_face_registered, generate_camera_frames
 
 hr_employee_bp = Blueprint("employee_users", __name__, url_prefix="/hr/employee")
@@ -46,7 +45,6 @@ def view_users():
             user["face_registered"] = is_face_registered(user["_id"])
             user["role_name"] = "Employee"
 
-            # Button: Register OR View/Update Face
             if user["face_registered"]:
                 user["face_action"] = {
                     "label": "View / Update Face",
@@ -177,9 +175,9 @@ def delete_user(user_id):
     return redirect(url_for("employee_users.view_users"))
 
 
-# -----------------------------
+# -------------------------------------------------------------
 # REGISTER FACE (Live View)
-# -----------------------------
+# -------------------------------------------------------------
 @hr_employee_bp.route("/register_face/<user_id>")
 @login_required
 def register_face(user_id):
@@ -188,13 +186,12 @@ def register_face(user_id):
         flash("Employee not found!", "danger")
         return redirect(url_for("employee_users.view_users"))
 
-    # Render live view page
     return render_template("hr/faceCapture.html", user=user, action="register", old_images=[])
 
 
-# -----------------------------
+# -------------------------------------------------------------
 # UPDATE FACE (View old + Live)
-# -----------------------------
+# -------------------------------------------------------------
 @hr_employee_bp.route("/update_face/<user_id>")
 @login_required
 def update_face(user_id):
@@ -203,42 +200,47 @@ def update_face(user_id):
         flash("Employee not found!", "danger")
         return redirect(url_for("employee_users.view_users"))
 
-    # Fetch old image preview (first face)
     old_images = user.get("face_data", {}).get("images", [])
-
-    print(old_images)
+    print("[INFO] Old images loaded:", old_images)
 
     return render_template("hr/faceCapture.html", user=user, action="update", old_images=old_images)
 
 
-# -----------------------------
+# -------------------------------------------------------------
 # STREAM CAMERA FEED
-# -----------------------------
+# -------------------------------------------------------------
 @hr_employee_bp.route("/video_feed")
 @login_required
 def video_feed():
+    """Live camera feed for face registration page."""
     return Response(generate_camera_frames(), mimetype="multipart/x-mixed-replace; boundary=frame")
 
 
 # -------------------------------------------------------------
-# CAPTURE & SAVE
+# CAPTURE & SAVE FACE IMAGES
 # -------------------------------------------------------------
 @hr_employee_bp.route("/capture_face/<user_id>/<action>")
 @login_required
 def capture_face_action(user_id, action):
-    user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
-    if not user:
-        flash("Employee not found!", "danger")
-        return redirect(url_for("employee_users.view_users"))
+    """Capture faces using OpenCV DNN and update MongoDB."""
+    try:
+        user = mongo.db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            flash("Employee not found!", "danger")
+            return redirect(url_for("employee_users.view_users"))
 
-    folder_path = capture_faces_for_user(user_id, user["name"])
+        result = capture_faces_for_user(user_id, user["name"])
 
-    if folder_path == "duplicate":
-        flash("This face already exists in the system. Duplicate registration blocked.", "warning")
-    elif folder_path:
-        msg = "Face registered successfully!" if action == "register" else "Face updated successfully!"
-        flash(msg, "success")
-    else:
-        flash("No faces captured. Try again.", "warning")
+        if result == "duplicate":
+            flash("❌ Duplicate face detected! Registration aborted.", "danger")
+        elif result:
+            msg = "✅ Face registered successfully!" if action == "register" else "✅ Face updated successfully!"
+            flash(msg, "success")
+        else:
+            flash("⚠️ No faces captured. Please try again.", "warning")
+
+    except Exception as e:
+        print(f"[ERROR] capture_face_action failed: {e}")
+        flash(f"Error capturing face: {e}", "danger")
 
     return redirect(url_for("employee_users.view_users"))
