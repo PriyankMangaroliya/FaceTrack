@@ -5,6 +5,7 @@ Manual Face Recognition & Attendance Marking System
 
 ✅ Uses pre-saved encodings.pkl and MongoDB (direct connection)
 ✅ Allows multiple Check-Ins, Re-Entries, and Check-Outs per day
+✅ Shows model accuracy live in CMD
 ✅ Press ESC to exit camera manually
 """
 
@@ -13,8 +14,7 @@ import cv2
 import pickle
 import numpy as np
 from datetime import datetime
-from pymongo import MongoClient   # ✅ direct DB connection (no Flask)
-import time
+from pymongo import MongoClient
 
 # ==============================
 # GLOBAL CONFIG
@@ -26,16 +26,16 @@ ENCODINGS_FILE = os.path.join(BASE_DIR, "..", "encodings.pkl")
 MODEL_PROTO = os.path.join(BASE_DIR, "deploy.prototxt")
 MODEL_WEIGHTS = os.path.join(BASE_DIR, "res10_300x300_ssd_iter_140000.caffemodel")
 
-# ✅ Direct MongoDB connection (change if needed)
+# ✅ MongoDB connection
 client = MongoClient("mongodb://localhost:27017/")
-db = client["AttendanceSystem"]  # ← use your DB name here
+db = client["AttendanceSystem"]
 
 # ==============================
-# DNN FACE MODEL
+# DNN MODEL LOAD
 # ==============================
 if not (os.path.exists(MODEL_PROTO) and os.path.exists(MODEL_WEIGHTS)):
     raise FileNotFoundError(
-        f"❌ Missing DNN model files.\nExpected:\n- {MODEL_PROTO}\n- {MODEL_WEIGHTS}"
+        f"❌ Missing model files.\nExpected:\n- {MODEL_PROTO}\n- {MODEL_WEIGHTS}"
     )
 
 FACE_NET = cv2.dnn.readNetFromCaffe(MODEL_PROTO, MODEL_WEIGHTS)
@@ -43,15 +43,12 @@ CONFIDENCE_THRESHOLD = 0.6
 
 
 # -------------------------------------------------------------
-# FAST DNN FACE DETECTION
+# FACE DETECTION (DNN)
 # -------------------------------------------------------------
 def detect_faces_dnn(frame, conf_threshold=CONFIDENCE_THRESHOLD):
-    """Detect faces using OpenCV DNN and return bounding boxes."""
     h, w = frame.shape[:2]
-    blob = cv2.dnn.blobFromImage(
-        cv2.resize(frame, (300, 300)), 1.0,
-        (300, 300), (104.0, 177.0, 123.0)
-    )
+    blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0,
+                                 (300, 300), (104.0, 177.0, 123.0))
     FACE_NET.setInput(blob)
     detections = FACE_NET.forward()
 
@@ -71,26 +68,22 @@ def detect_faces_dnn(frame, conf_threshold=CONFIDENCE_THRESHOLD):
 # -------------------------------------------------------------
 def load_encodings():
     if not os.path.exists(ENCODINGS_FILE):
-        print("[INFO] No encodings.pkl found. Please register faces first.")
+        print("[INFO] No encodings.pkl found.")
         return {}
-    try:
-        with open(ENCODINGS_FILE, "rb") as f:
-            return pickle.load(f)
-    except EOFError:
-        print("[WARN] encodings.pkl corrupted — resetting file.")
-        return {}
+    with open(ENCODINGS_FILE, "rb") as f:
+        return pickle.load(f)
 
 
 # -------------------------------------------------------------
-# DATABASE HANDLER FOR ATTENDANCE
+# ATTENDANCE DB HANDLER
 # -------------------------------------------------------------
 def mark_attendance_in_db(user_id, user_name, gap_seconds=7200):
     """
-    Marks attendance in MongoDB:
-    - First entry → Check-In
+    Marks attendance:
+    - First → Check-In
     - After 2+ hours → Check-Out
     - After 5+ minutes → Re-Entry
-    - Within 5 minutes → Skips (avoid duplicate)
+    - Within 5 minutes → skip
     """
     try:
         now = datetime.utcnow()
@@ -109,7 +102,7 @@ def mark_attendance_in_db(user_id, user_name, gap_seconds=7200):
             elif diff > 300:
                 status = "Re-Entry"
             else:
-                return False  # skip duplicates within 5 minutes
+                return False
 
         db.attendances.insert_one({
             "user_id": user_id,
@@ -131,13 +124,9 @@ def mark_attendance_in_db(user_id, user_name, gap_seconds=7200):
 
 
 # -------------------------------------------------------------
-# MAIN FACE RECOGNITION FUNCTION (MANUAL)
+# MAIN FACE RECOGNITION WITH ACCURACY DISPLAY
 # -------------------------------------------------------------
 def mark_face_recognition():
-    """
-    Starts webcam for manual attendance marking.
-    Run manually using: python utils/mark_attendance.py
-    """
     try:
         encodings = load_encodings()
         if not encodings:
@@ -149,9 +138,11 @@ def mark_face_recognition():
             print("[❌ ERROR] Could not access the camera.")
             return
 
-        print("[🎥 INFO] Starting Manual Attendance Recognition...")
+        print("\n[🎥 INFO] Starting Manual Attendance Recognition...")
         print("[ℹ️ INFO] Press ESC to stop.\n")
 
+        total_tests = 0
+        correct_matches = 0
         recognized_users = set()
 
         while True:
@@ -169,8 +160,7 @@ def mark_face_recognition():
                 gray = cv2.cvtColor(face_crop, cv2.COLOR_BGR2GRAY)
                 face_enc = cv2.resize(gray, (100, 100)).flatten()
 
-                matched_user = None
-                min_dist = float("inf")
+                matched_user, min_dist = None, float("inf")
                 threshold = 3500.0
 
                 for uid, data in encodings.items():
@@ -179,27 +169,38 @@ def mark_face_recognition():
                         matched_user = (uid, data["name"])
                         min_dist = dist
 
+                total_tests += 1
                 color, label = (0, 0, 255), f"Unknown ({int(conf * 100)}%)"
+
                 if matched_user:
                     uid, name = matched_user
                     mark_attendance_in_db(uid, name)
+                    correct_matches += 1
                     label, color = f"{name} ({int(conf * 100)}%)", (0, 255, 0)
 
                     if uid not in recognized_users:
                         print(f"[🎯 RECOGNIZED] {name} | Distance={min_dist:.2f}")
                         recognized_users.add(uid)
 
+                # ✅ Display accuracy in CMD live
+                accuracy = (correct_matches / total_tests) * 100 if total_tests > 0 else 0
+                print(f"[📊 Accuracy Update] {accuracy:.2f}% ({correct_matches}/{total_tests})", end="\r")
+
+                # Draw bounding box
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
                 cv2.putText(frame, label, (x, y - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
             cv2.imshow("Mark Attendance - Press ESC to Stop", frame)
-            if cv2.waitKey(1) == 27:  # ESC key
+            if cv2.waitKey(1) == 27:  # ESC
                 break
 
         cap.release()
         cv2.destroyAllWindows()
-        print("[ℹ️ INFO] Attendance marking session ended.")
+        print("\n\n[ℹ️ INFO] Attendance marking session ended.")
+        if total_tests > 0:
+            final_acc = (correct_matches / total_tests) * 100
+            print(f"[✅ Final Accuracy] {final_acc:.2f}% ({correct_matches}/{total_tests})")
 
     except Exception as e:
         print(f"[❌ ERROR] mark_face_recognition failed: {e}")
