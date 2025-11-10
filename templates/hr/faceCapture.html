@@ -21,6 +21,7 @@
             border-radius: 8px;
             border: 2px solid #6c757d;
         }
+
         .camera-frame {
             border: 3px solid #28a745;
             border-radius: 8px;
@@ -54,12 +55,17 @@
                         {% if old_images %}
                             <div class="mb-4">
                                 <h6 class="text-muted">Previously Registered Faces:</h6>
-                                {% for img in old_images[:3] %}
-                                    <img src="{{ url_for('static', filename=img.split('static/')[1]) }}"
-                                         alt="Face Image" class="face-preview m-1 shadow-sm"/>
-                                {% endfor %}
+                                <div class="d-flex flex-wrap">
+                                    {% for img in old_images[:3] %}
+                                        <img src="{{ url_for('static', filename=img.split('static/')[1]) }}"
+                                             alt="Face Image"
+                                             class="face-preview m-1 shadow-sm rounded border"
+                                             style="width:100px;height:100px;object-fit:cover;">
+                                    {% endfor %}
+                                </div>
                             </div>
                         {% endif %}
+
 
                         <!-- Live Camera Feed -->
                         <div class="mt-3">

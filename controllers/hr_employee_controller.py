@@ -200,9 +200,13 @@ def update_face(user_id):
         flash("Employee not found!", "danger")
         return redirect(url_for("employee_users.view_users"))
 
-    old_images = user.get("face_data", {}).get("images", [])
-    print("[INFO] Old images loaded:", old_images)
+    face_data = user.get("face_data", {})
+    old_images = face_data.get("images", [])
 
+    # ✅ Ensure path is correct for web rendering
+    old_images = [img if img.startswith("static/") else f"static/{img}" for img in old_images]
+
+    print("[INFO] Old images loaded:", old_images)
     return render_template("hr/faceCapture.html", user=user, action="update", old_images=old_images)
 
 
