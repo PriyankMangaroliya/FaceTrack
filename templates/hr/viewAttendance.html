@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" name="viewport">
+    <title>FaceTrack - HR | Attendance Dashboard</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/app.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/components.css') }}">
+
+    <style>
+        .attendance-card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 15px 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+        }
+        .employee-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .employee-name {
+            font-weight: 600;
+            font-size: 1rem;
+            color: #2d3436;
+        }
+        .badge-status {
+            font-size: 0.75rem;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+        .badge-present { background: #007bff; color: #fff; }
+        .badge-absent { background: #dc3545; color: #fff; }
+        .badge-dayoff { background: #ffc107; color: #000; }
+        .badge-overtime { background: #fd7e14; color: #fff; }
+
+        .timeline {
+            display: flex;
+            align-items: center;
+            width: 100%;
+            height: 28px;
+            border-radius: 5px;
+            overflow: hidden;
+            background: #e9ecef;
+        }
+        .segment {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 0.7rem;
+            text-align: center;
+        }
+        .segment.working { background-color: #007bff; }
+        .segment.break { background-color: #17a2b8; }
+        .segment.overtime { background-color: #fd7e14; }
+
+        .entry-box {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 8px;
+            font-size: 0.85rem;
+        }
+        .date-filter {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="main-wrapper main-wrapper-1">
+        {% include 'hr/sidebar.html' %}
+
+        <div class="main-content">
+            <section class="section">
+                <div class="section-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Attendance Dashboard — {{ today }}</h5>
+                        <form method="get" action="{{ url_for('hr_attendance.view_attendance') }}">
+                            <div class="date-filter">
+                                <input type="date" name="date" value="{{ request.args.get('date', today) }}" class="form-control d-inline-block" style="width: 180px; display:inline;">
+                                <button type="submit" class="btn btn-primary btn-sm">View</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    {% if attendance_data %}
+                        {% for emp in attendance_data %}
+                            <div class="attendance-card">
+                                <div class="employee-header">
+                                    <div class="employee-name">{{ emp.user_name }}</div>
+                                    {% if emp.status == "dayoff" %}
+                                        <span class="badge-status badge-dayoff">Day Off</span>
+                                    {% elif emp.status == "absent" %}
+                                        <span class="badge-status badge-absent">Absent</span>
+                                    {% elif emp.status == "overtime" %}
+                                        <span class="badge-status badge-overtime">Overtime</span>
+                                    {% else %}
+                                        <span class="badge-status badge-present">Present</span>
+                                    {% endif %}
+                                </div>
+
+                                <div class="timeline">
+                                    {% for e in emp.entries %}
+                                        <div class="segment working"
+                                             style="width: {{ 100 / emp.entries|length }}%">
+                                            {{ e.label or 'Session' }}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+
+                                <div class="mt-2 text-muted small">
+                                    Total Duration: <strong>{{ emp.total_duration }}</strong>
+                                </div>
+
+                                {% for e in emp.entries %}
+                                    <div class="entry-box">
+                                        <div><strong>{{ e.label or 'Work Session' }}</strong></div>
+                                        <div>In: {{ e.time_in or e.in or '-' }} | Out: {{ e.time_out or e.out or '-' }} | Duration: {{ e.duration or '-' }}</div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-warning text-center">
+                            No attendance records found for selected date.
+                        </div>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='assets/js/app.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/scripts.js') }}"></script>
+</body>
+</html>

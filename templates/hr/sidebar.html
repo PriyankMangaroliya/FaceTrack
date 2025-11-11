@@ -68,8 +68,8 @@
             </li>
 
 
-            <li class="dropdown {% if request.endpoint == 'hr.index' %}active{% endif %}">
-                <a href="{{ url_for('hr.index') }}" class="nav-link">
+            <li class="dropdown {% if request.endpoint == 'hr_attendance.view_attendance' %}active{% endif %}">
+                <a href="{{ url_for('hr_attendance.view_attendance') }}" class="nav-link">
                     <i data-feather="calendar"></i><span>Attendance</span>
                 </a>
             </li>

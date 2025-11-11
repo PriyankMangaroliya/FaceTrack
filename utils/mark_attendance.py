@@ -1,50 +1,79 @@
 """
 utils/mark_attendance.py
 ---------------------------------
-LBPH Face Recognition & Attendance Marking System
+LBPH Face Recognition & Attendance Marking System (adaptive duration)
 
-✅ Uses OpenCV DNN for detection + LBPH for recognition
-✅ Fully works offline (no dlib required)
-✅ Auto Check-In / Re-Entry / Check-Out logic
-✅ Displays live confidence & model accuracy
-✅ Stores attendance in MongoDB
+Behavior:
+- Multiple entries per user per day
+- Odd recognition → create 'Check-In'
+- Even recognition → 'Check-Out' if ≥30 min since last 'Check-In'
+- Recognitions <30 min after previous one are ignored
+- Handles midnight wrap (time_out < time_in)
+- Stores/updates one document per user/day in MongoDB
 """
 
 import os
 import cv2
 import pickle
 import numpy as np
-from datetime import datetime
+from datetime import datetime, timedelta
 from pymongo import MongoClient
 from bson import ObjectId
-from utils.db import mongo
 
-# ==============================
-# GLOBAL CONFIGURATION
-# ==============================
+# ============================
+# CONFIG
+# ============================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PROTO = os.path.join(BASE_DIR, "deploy.prototxt")
 MODEL_WEIGHTS = os.path.join(BASE_DIR, "res10_300x300_ssd_iter_140000.caffemodel")
 MODEL_FILE = os.path.join(BASE_DIR, "..", "lbph_model.yml")
 LABELS_FILE = os.path.join(BASE_DIR, "..", "labels.pkl")
 
-# ✅ MongoDB Connection
-client = MongoClient("mongodb://localhost:27017/")
-db = client["AttendanceSystem"]
+MONGO_URI = "mongodb://localhost:27017/"
+DB_NAME = "AttendanceSystem"
 
-# Load DNN Model
-if not (os.path.exists(MODEL_PROTO) and os.path.exists(MODEL_WEIGHTS)):
-    raise FileNotFoundError("❌ Missing DNN model files (deploy.prototxt / caffemodel).")
-
-FACE_NET = cv2.dnn.readNetFromCaffe(MODEL_PROTO, MODEL_WEIGHTS)
+MIN_DURATION_MINUTES = 5
 CONFIDENCE_THRESHOLD = 0.6
 
+if not (os.path.exists(MODEL_PROTO) and os.path.exists(MODEL_WEIGHTS)):
+    raise FileNotFoundError("Missing DNN model files.")
 
-# -------------------------------------------------------------
-# DNN FACE DETECTION
-# -------------------------------------------------------------
+FACE_NET = cv2.dnn.readNetFromCaffe(MODEL_PROTO, MODEL_WEIGHTS)
+
+
+# ============================
+# UTILITIES
+# ============================
+def _parse_time_str(tstr):
+    for fmt in ("%H:%M:%S", "%H:%M"):
+        try:
+            return datetime.strptime(tstr, fmt)
+        except ValueError:
+            continue
+    raise ValueError(f"Bad time: {tstr}")
+
+
+def _minutes_between(t1, t2):
+    """Return minutes between two HH:MM times, handle midnight."""
+    d1 = _parse_time_str(t1)
+    d2 = _parse_time_str(t2)
+    today = datetime.now().date()
+    d1 = d1.replace(year=today.year, month=today.month, day=today.day)
+    d2 = d2.replace(year=today.year, month=today.month, day=today.day)
+    if d2 < d1:
+        d2 += timedelta(days=1)
+    return int((d2 - d1).total_seconds() / 60)
+
+
+def _format_dur(m):
+    h, mm = divmod(int(m), 60)
+    return f"{h}h {mm}m"
+
+
+# ============================
+# FACE DETECTION (DNN)
+# ============================
 def detect_faces_dnn(frame, conf_threshold=CONFIDENCE_THRESHOLD):
-    """Detects faces using OpenCV DNN and returns bounding boxes."""
     h, w = frame.shape[:2]
     blob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0,
                                  (300, 300), (104.0, 177.0, 123.0))
@@ -53,7 +82,7 @@ def detect_faces_dnn(frame, conf_threshold=CONFIDENCE_THRESHOLD):
 
     boxes = []
     for i in range(detections.shape[2]):
-        confidence = detections[0, 0, i, 2]
+        confidence = float(detections[0, 0, i, 2])
         if confidence > conf_threshold:
             box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
             (x1, y1, x2, y2) = box.astype("int")
@@ -61,89 +90,111 @@ def detect_faces_dnn(frame, conf_threshold=CONFIDENCE_THRESHOLD):
     return boxes
 
 
-# -------------------------------------------------------------
-# MARK ATTENDANCE IN DATABASE
-# -------------------------------------------------------------
+# ============================
+# MARK ATTENDANCE
+# ============================
 def mark_attendance_in_db(user_id, user_name, institute_id="Unknown"):
     """
-    Marks attendance for a recognized user.
-    Supports multiple entries per day (Check-In, Re-Entry, Check-Out)
+    If first recognition today → Check-In
+    If last entry open and ≥30 min passed → Check-Out
+    If <30 min passed → ignore
+    If last entry closed and ≥30 min passed → new Check-In
     """
     try:
-        # ✅ Ensure MongoDB connection
-        client = MongoClient("mongodb://localhost:27017/")
-        db = client["AttendanceSystem"]
-
+        client = MongoClient(MONGO_URI)
+        db = client[DB_NAME]
         now = datetime.utcnow()
         today = now.strftime("%Y-%m-%d")
+        current_time = now.strftime("%H:%M")
 
-        # Find last entry for this user today
-        last_entry = db.attendances.find_one(
-            {"user_id": user_id, "date": today},
-            sort=[("created_at", -1)]
-        )
+        rec = db.attendances.find_one({"user_id": str(user_id), "date": today})
+        if not rec:
+            entry = {"time_in": current_time, "time_out": None,
+                     "duration": None, "label": "Check-In"}
+            db.attendances.insert_one({
+                "user_id": str(user_id),
+                "institute_id": str(institute_id),
+                "date": today,
+                "entries": [entry],
+                "status": "present",
+                "marked_by": "LBPH System",
+                "created_at": now,
+                "updated_at": now
+            })
+            print(f"[NEW] {user_name} | Check-In {current_time}")
+            return True
 
-        status = "Check-In"
-        if last_entry:
-            diff = (now - last_entry["created_at"]).seconds
-            if diff > 7200:  # >2 hours
-                status = "Check-Out"
-            elif diff > 300:  # >5 minutes
-                status = "Re-Entry"
-            else:
-                print(f"[SKIP] Recent attendance exists for {user_name}")
+        entries = rec.get("entries", [])
+        last = entries[-1] if entries else None
+
+        if not last:
+            # empty entries
+            entries.append({"time_in": current_time, "time_out": None,
+                            "duration": None, "label": "Check-In"})
+            db.attendances.update_one({"_id": rec["_id"]},
+                                      {"$set": {"entries": entries, "updated_at": now}})
+            print(f"[ADD] {user_name} | Check-In {current_time}")
+            return True
+
+        # Case 1: last entry open (no time_out)
+        if last.get("time_out") is None:
+            diff = _minutes_between(last["time_in"], current_time)
+            if diff < MIN_DURATION_MINUTES:
+                print(f"[SKIP] {user_name} re-detected within {diff}m (<{MIN_DURATION_MINUTES}m)")
                 return False
+            # Close entry
+            actual = max(diff, MIN_DURATION_MINUTES)
+            last["time_out"] = current_time
+            last["duration"] = _format_dur(actual)
+            last["label"] = "Check-Out"
+            entries[-1] = last
+            db.attendances.update_one({"_id": rec["_id"]},
+                                      {"$set": {"entries": entries, "updated_at": now}})
+            print(f"[OUT] {user_name} | Check-Out {current_time} | {actual}m")
+            return True
 
-        record = {
-            "user_id": user_id,
-            "institute_id": institute_id,
-            "date": today,
-            "time": now.strftime("%H:%M:%S"),
-            "marked_by": "LBPH System",
-            "status": status,
-            "remarks": "",
-            "correction": None,
-            "created_at": now,
-            "updated_at": now
-        }
-
-        db.attendances.insert_one(record)
-        print(f"[✅ ATTENDANCE] {user_name} | {status} | {today} {now.strftime('%H:%M:%S')}")
+        # Case 2: last entry closed → check interval for next IN
+        last_out = last.get("time_out")
+        diff = _minutes_between(last_out, current_time)
+        if diff < MIN_DURATION_MINUTES:
+            print(f"[SKIP] {user_name} detected again within {diff}m (<{MIN_DURATION_MINUTES}m)")
+            return False
+        # start new entry
+        entries.append({"time_in": current_time, "time_out": None,
+                        "duration": None, "label": "Check-In"})
+        db.attendances.update_one({"_id": rec["_id"]},
+                                  {"$set": {"entries": entries, "updated_at": now}})
+        print(f"[IN] {user_name} | New Check-In {current_time}")
         return True
 
     except Exception as e:
-        print(f"[ERROR] mark_attendance_in_db failed: {e}")
+        print(f"[ERROR] DB mark failed: {e}")
         return False
 
 
-# -------------------------------------------------------------
-# MAIN FACE RECOGNITION + LIVE ACCURACY
-# -------------------------------------------------------------
+# ============================
+# FACE RECOGNITION LOOP
+# ============================
 def mark_face_recognition():
-    """
-    Recognize faces using LBPH and mark attendance automatically.
-    Works with label format: username_userid (e.g. Priysami_690ccb9e56acb5814051c4f7)
-    """
     try:
         if not os.path.exists(MODEL_FILE):
-            print("[❌ ERROR] LBPH model not found. Please train first.")
+            print("[ERROR] No LBPH model found.")
             return
 
         recognizer = cv2.face.LBPHFaceRecognizer_create()
         recognizer.read(MODEL_FILE)
+
         with open(LABELS_FILE, "rb") as f:
             labels = pickle.load(f)
-        rev_labels = {v: k for k, v in labels.items()}
+        rev = {v: k for k, v in labels.items()}
 
         cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         if not cap.isOpened():
-            print("[❌ ERROR] Cannot access camera.")
+            print("[ERROR] Cannot open camera.")
             return
 
-        print("[INFO] Starting LBPH Attendance Recognition (Press ESC to exit)...")
-        recognized_today = set()
-        total_tests = 0
-        correct_matches = 0
+        print("[INFO] LBPH Recognition Started (ESC to exit)")
+        total, correct = 0, 0
 
         while True:
             ret, frame = cap.read()
@@ -153,73 +204,54 @@ def mark_face_recognition():
             faces = detect_faces_dnn(frame)
 
             for (x, y, w, h, conf) in faces:
-                face = gray[y:y + h, x:x + w]
-                if face.size == 0:
+                roi = gray[y:y + h, x:x + w]
+                if roi.size == 0:
                     continue
 
-                label_id, confidence = recognizer.predict(face)
-                total_tests += 1
-
-                if confidence < 70:
-                    full_label = rev_labels[label_id]
-                    if "_" in full_label:
-                        name, user_id_str = full_label.rsplit("_", 1)
-                    else:
-                        name, user_id_str = full_label, None
-
-                    # Convert safely to ObjectId
+                lid, confv = recognizer.predict(roi)
+                total += 1
+                if confv < 70:
+                    full = rev.get(lid)
+                    if not full:
+                        continue
+                    name, uid = (full.rsplit("_", 1) + [None])[:2]
                     try:
-                        user_oid = ObjectId(user_id_str)
+                        uid_str = str(ObjectId(uid))
                     except Exception:
-                        print(f"[WARN] Invalid ObjectId for {full_label}")
-                        continue
-
-                    # Lookup user in DB
-                    user_record = db.users.find_one({"_id": user_oid})
-                    if not user_record:
-                        print(f"[WARN] User '{full_label}' not found in database.")
-                        continue
-
-                    correct_matches += 1
+                        uid_str = uid
+                    user_doc = None
+                    try:
+                        user_doc = MongoClient(MONGO_URI)[DB_NAME].users.find_one({"_id": ObjectId(uid)})
+                    except Exception:
+                        pass
+                    inst = str(user_doc.get("institute_id")) if user_doc else "Unknown"
+                    mark_attendance_in_db(uid_str or name, name, inst)
                     color = (0, 255, 0)
-                    label = f"{name} ({round(100 - confidence, 2)}%)"
-
-                    # Mark attendance only once per session
-                    if str(user_oid) not in recognized_today:
-                        institute_id = str(user_record.get("institute_id", "Unknown"))
-                        mark_attendance_in_db(
-                            user_id=str(user_oid),
-                            user_name=name,
-                            institute_id=institute_id
-                        )
-                        recognized_today.add(str(user_oid))
-
+                    correct += 1
+                    # label = f"{name} ({100 - confv:.1f}%)"
+                    label = f"{name}"
                 else:
-                    name = "Unknown"
                     color = (0, 0, 255)
-                    label = f"{name} ({round(100 - confidence, 2)}%)"
+                    # label = f"Unknown ({100 - confv:.1f}%)"
+                    label = "Unknown"
 
                 cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
                 cv2.putText(frame, label, (x, y - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
 
-            accuracy = (correct_matches / total_tests * 100) if total_tests > 0 else 0
-            print(f"[LIVE ACCURACY] {accuracy:.2f}% ({correct_matches}/{total_tests})", end="\r")
-
-            cv2.imshow("LBPH Attendance Recognition", frame)
-            if cv2.waitKey(1) == 27:  # ESC key
+            acc = (correct / total * 100) if total else 0
+            print(f"[LIVE ACC] {acc:.2f}% ({correct}/{total})", end="\r")
+            cv2.imshow("LBPH Attendance", frame)
+            if cv2.waitKey(1) == 27:
                 break
 
         cap.release()
         cv2.destroyAllWindows()
-        print(f"\n[FINAL ACCURACY] {accuracy:.2f}% ({correct_matches}/{total_tests})")
+        print(f"\n[FINAL ACC] {acc:.2f}% ({correct}/{total})")
 
     except Exception as e:
-        print(f"[ERROR] mark_face_recognition failed: {e}")
+        print(f"[ERROR] Recognition loop: {e}")
 
 
-# -------------------------------------------------------------
-# MAIN ENTRY POINT
-# -------------------------------------------------------------
 if __name__ == "__main__":
     mark_face_recognition()
