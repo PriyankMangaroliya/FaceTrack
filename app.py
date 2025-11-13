@@ -10,6 +10,8 @@ from controllers.sa_controller import systemadmin_bp
 from controllers.sa_roles_controller import roles_bp
 from controllers.sa_institutes_controller import institutes_bp
 from controllers.sa_users_controller import users_bp
+from controllers.sa_r1_controller import sa_reports_bp
+from controllers.sa_r2_controller import sa_attendance_bp
 
 from controllers.hr_controller import hr_bp
 from controllers.hr_users_controller import hr_users_bp
@@ -29,6 +31,8 @@ app.register_blueprint(systemadmin_bp)
 app.register_blueprint(roles_bp)
 app.register_blueprint(institutes_bp)
 app.register_blueprint(users_bp)
+app.register_blueprint(sa_reports_bp)
+app.register_blueprint(sa_attendance_bp)
 
 app.register_blueprint(hr_bp)
 app.register_blueprint(hr_users_bp)

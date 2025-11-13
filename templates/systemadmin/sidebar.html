@@ -24,7 +24,8 @@
             </a>
             <div class="dropdown-menu dropdown-menu-right pullDown">
                 <div class="dropdown-title">{{ user_name }}</div>
-                <a href="{{ url_for('auth.view_profile') }}" class="dropdown-item has-icon"><i class="far fa-user"></i> Profile </a>
+                <a href="{{ url_for('auth.view_profile') }}" class="dropdown-item has-icon"><i class="far fa-user"></i>
+                    Profile </a>
                 <a href="#" class="dropdown-item has-icon"><i class="fas fa-bolt"></i> Activities </a>
                 <a href="javascript:void(0)" class="settingPanelToggle dropdown-item has-icon"><i class="fas fa-cog">
                 </i> Settings</a>
@@ -72,14 +73,23 @@
                 </a>
             </li>
 
-            <li class="dropdown">
+            <li class="dropdown {% if request.endpoint == 'sa_reports.institute_report' %}active{% endif %}
+                {% if request.endpoint == 'sa_attendance.institute_attendance_report' %}active{% endif %}">
                 <a href="#" class="menu-toggle nav-link has-dropdown">
                     <i data-feather="file-text"></i><span>Reports</span>
                 </a>
                 <ul class="dropdown-menu">
-                    <li><a class="nav-link" href="#">Daily Attendance</a></li>
-                    <li><a class="nav-link" href="#">Monthly Attendance</a></li>
+                    <li><a class="nav-link" href="{{ url_for('sa_reports.institute_report') }}">Institute Report</a>
+                    </li>
+                    <li><a class="nav-link" href="{{ url_for('sa_attendance.institute_attendance_report') }}">Attendance
+                        Report</a></li>
                 </ul>
+            </li>
+
+            <li class="dropdown">
+                <a href="{{ url_for('auth.logout') }}" class="nav-link">
+                    <i class="fas fa-sign-out-alt"></i><span>Logout</span>
+                </a>
             </li>
 
         </ul>

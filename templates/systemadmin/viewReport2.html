@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" name="viewport">
+  <title>FaceTrack - Institute Attendance Report</title>
+  <link rel="stylesheet" href="../../static/assets/css/app.min.css">
+  <link rel="stylesheet" href="../../static/assets/css/style.css">
+  <link rel="stylesheet" href="../../static/assets/css/components.css">
+  <link rel="stylesheet" href="../../static/assets/css/custom.css">
+  <style>
+    .export-buttons a { margin-right: 8px; }
+  </style>
+</head>
+<body>
+<div class="loader"></div>
+<div id="app">
+  <div class="main-wrapper main-wrapper-1">
+    {% include 'systemadmin/sidebar.html' %}
+    <div class="main-content">
+      <section class="section">
+        <div class="section-header">
+          <h1>Institute Attendance Report</h1>
+        </div>
+
+        <div class="section-body">
+          <!-- SELECT INSTITUTE -->
+          <form method="get" action="{{ url_for('sa_attendance.institute_attendance_report') }}" class="mb-4">
+            <div class="form-group">
+              <label><strong>Select Institute:</strong></label>
+              <div class="input-group">
+                <select name="institute_id" class="form-control" required>
+                  <option value="">-- Select Institute --</option>
+                  {% for inst in institutes %}
+                    <option value="{{ inst._id }}" {% if institute and inst._id == institute._id %}selected{% endif %}>{{ inst.name }}</option>
+                  {% endfor %}
+                </select>
+                <div class="input-group-append">
+                  <button class="btn btn-primary">View Attendance</button>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          {% if institute %}
+          <div class="card mb-4">
+            <div class="card-header">
+              <h4>Institute: {{ institute.name }}</h4>
+              <div class="card-header-action export-buttons">
+                <a href="{{ url_for('sa_attendance.institute_attendance_report', institute_id=institute._id, export='csv') }}" class="btn btn-outline-primary">CSV</a>
+                <a href="{{ url_for('sa_attendance.institute_attendance_report', institute_id=institute._id, export='xlsx') }}" class="btn btn-outline-success">Excel</a>
+                <a href="{{ url_for('sa_attendance.institute_attendance_report', institute_id=institute._id, export='pdf') }}" class="btn btn-outline-danger">PDF</a>
+              </div>
+            </div>
+
+            <div class="card-body">
+              {% if attendance_list %}
+              <div class="table-responsive">
+                <table class="table table-striped table-bordered">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Designation</th>
+                      <th>Date</th>
+                      <th>Status</th>
+                      <th>Remarks</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for row in attendance_list %}
+                    <tr>
+                      <td>{{ loop.index }}</td>
+                      <td>{{ row.name }}</td>
+                      <td>{{ row.email }}</td>
+                      <td>{{ row.designation or '—' }}</td>
+                      <td>{{ row.date }}</td>
+                      <td>{{ row.status }}</td>
+                      <td>{{ row.remarks or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+              {% else %}
+                <p class="text-muted text-center">No attendance records found for this institute.</p>
+              {% endif %}
+            </div>
+          </div>
+          {% else %}
+          <div class="alert alert-info text-center">
+            Please select an institute to view attendance records.
+          </div>
+          {% endif %}
+        </div>
+      </section>
+      {% include 'systemadmin/settings.html' %}
+    </div>
+  </div>
+</div>
+
+<script src="../../static/assets/js/app.min.js"></script>
+<script src="../../static/assets/js/scripts.js"></script>
+</body>
+</html>

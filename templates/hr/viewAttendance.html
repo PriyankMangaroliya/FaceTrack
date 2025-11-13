@@ -2,75 +2,76 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" name="viewport">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FaceTrack - HR | Attendance Dashboard</title>
 
-    <!-- CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/app.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/components.css') }}">
 
     <style>
-        .attendance-card {
+        .attendance-container {
             background: #fff;
-            border-radius: 10px;
-            padding: 15px 20px;
-            margin-bottom: 25px;
-            box-shadow: 0 1px 5px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 30px;
         }
-        .employee-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .employee-name {
-            font-weight: 600;
-            font-size: 1rem;
-            color: #2d3436;
-        }
-        .badge-status {
-            font-size: 0.75rem;
-            padding: 5px 10px;
-            border-radius: 5px;
-        }
-        .badge-present { background: #007bff; color: #fff; }
-        .badge-absent { background: #dc3545; color: #fff; }
-        .badge-dayoff { background: #ffc107; color: #000; }
-        .badge-overtime { background: #fd7e14; color: #fff; }
 
-        .timeline {
-            display: flex;
-            align-items: center;
+        table {
             width: 100%;
-            height: 28px;
-            border-radius: 5px;
-            overflow: hidden;
-            background: #e9ecef;
+            border-collapse: collapse;
         }
-        .segment {
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-            font-size: 0.7rem;
+
+        th, td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e9ecef;
             text-align: center;
         }
-        .segment.working { background-color: #007bff; }
-        .segment.break { background-color: #17a2b8; }
-        .segment.overtime { background-color: #fd7e14; }
 
-        .entry-box {
+        th {
             background: #f8f9fa;
-            border-radius: 8px;
-            padding: 10px;
-            margin-top: 8px;
-            font-size: 0.85rem;
+            font-weight: 600;
         }
-        .date-filter {
-            margin-bottom: 20px;
-            text-align: right;
+
+        .badge-status {
+            padding: 5px 8px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+        }
+
+        .badge-present {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge-absent {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge-dayoff {
+            background: #ffc107;
+            color: black;
+        }
+
+        .badge-overtime {
+            background: #fd7e14;
+            color: white;
+        }
+
+        .missing-out {
+            color: #dc3545;
+            font-weight: 500;
+        }
+
+        .add-out-form input {
+            width: 120px;
+            display: inline-block;
+        }
+
+        .add-out-form button {
+            margin-left: 5px;
         }
     </style>
 </head>
@@ -78,62 +79,83 @@
 <div id="app">
     <div class="main-wrapper main-wrapper-1">
         {% include 'hr/sidebar.html' %}
-
         <div class="main-content">
             <section class="section">
                 <div class="section-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5>Attendance Dashboard — {{ today }}</h5>
-                        <form method="get" action="{{ url_for('hr_attendance.view_attendance') }}">
-                            <div class="date-filter">
-                                <input type="date" name="date" value="{{ request.args.get('date', today) }}" class="form-control d-inline-block" style="width: 180px; display:inline;">
+                    <div class="attendance-container">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5>Attendance Dashboard — {{ today }}</h5>
+                            <form method="get" action="{{ url_for('hr_attendance.view_attendance') }}"
+                                  class="d-flex gap-2">
+                                <input type="date" name="date" value="{{ request.args.get('date', today) }}"
+                                       class="form-control" style="max-width: 180px;">
                                 <button type="submit" class="btn btn-primary btn-sm">View</button>
-                            </div>
-                        </form>
-                    </div>
-
-                    {% if attendance_data %}
-                        {% for emp in attendance_data %}
-                            <div class="attendance-card">
-                                <div class="employee-header">
-                                    <div class="employee-name">{{ emp.user_name }}</div>
-                                    {% if emp.status == "dayoff" %}
-                                        <span class="badge-status badge-dayoff">Day Off</span>
-                                    {% elif emp.status == "absent" %}
-                                        <span class="badge-status badge-absent">Absent</span>
-                                    {% elif emp.status == "overtime" %}
-                                        <span class="badge-status badge-overtime">Overtime</span>
-                                    {% else %}
-                                        <span class="badge-status badge-present">Present</span>
-                                    {% endif %}
-                                </div>
-
-                                <div class="timeline">
-                                    {% for e in emp.entries %}
-                                        <div class="segment working"
-                                             style="width: {{ 100 / emp.entries|length }}%">
-                                            {{ e.label or 'Session' }}
-                                        </div>
-                                    {% endfor %}
-                                </div>
-
-                                <div class="mt-2 text-muted small">
-                                    Total Duration: <strong>{{ emp.total_duration }}</strong>
-                                </div>
-
-                                {% for e in emp.entries %}
-                                    <div class="entry-box">
-                                        <div><strong>{{ e.label or 'Work Session' }}</strong></div>
-                                        <div>In: {{ e.time_in or e.in or '-' }} | Out: {{ e.time_out or e.out or '-' }} | Duration: {{ e.duration or '-' }}</div>
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        {% endfor %}
-                    {% else %}
-                        <div class="alert alert-warning text-center">
-                            No attendance records found for selected date.
+                            </form>
                         </div>
-                    {% endif %}
+
+                        {% if attendance_data %}
+                            <table>
+                                <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Employee Name</th>
+                                    <th>Status</th>
+                                    <th>Sessions</th>
+                                    <th>Total Duration</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for emp in attendance_data %}
+                                    <tr>
+                                        <td>{{ loop.index }}</td>
+                                        <td>{{ emp.user_name }}</td>
+                                        <td>
+                                            {% if emp.status == "dayoff" %}
+                                                <span class="badge-status badge-dayoff">Day Off</span>
+                                            {% elif emp.status == "absent" %}
+                                                <span class="badge-status badge-absent">Absent</span>
+                                            {% elif emp.status == "overtime" %}
+                                                <span class="badge-status badge-overtime">Overtime</span>
+                                            {% else %}
+                                                <span class="badge-status badge-present">Present</span>
+                                            {% endif %}
+                                        </td>
+                                        <td style="text-align:left;">
+                                            {% for e in emp.entries %}
+                                                <div>
+                                                    <strong>{{ e.label or "Session" }}</strong>:
+                                                    {{ e.time_in or e.in or '-' }} →
+                                                    {% if e.time_out or e.out %}
+                                                        {{ e.time_out or e.out }}
+                                                    {% else %}
+                                                        <span class="missing-out">No out time</span>
+                                                        <form class="add-out-form d-inline" method="post"
+                                                              action="{{ url_for('hr_attendance.add_out_time') }}">
+                                                            <input type="hidden" name="attendance_id"
+                                                                   value="{{ emp.attendance_id }}">
+                                                            <input type="hidden" name="entry_index"
+                                                                   value="{{ loop.index0 }}">
+                                                            <input type="time" name="out_time" required>
+
+                                                            <button type="submit" class="btn btn-sm btn-success">Add
+                                                            </button>
+                                                        </form>
+                                                    {% endif %}
+                                                    <small>({{ e.duration or '-' }})</small>
+                                                </div>
+                                            {% endfor %}
+                                        </td>
+                                        <td><strong>{{ emp.total_duration }}</strong></td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        {% else %}
+                            <div class="alert alert-warning text-center mt-3">No attendance records found for this
+                                date.
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
             </section>
         </div>
