@@ -27,22 +27,22 @@
         <div class="main-content">
             <section class="section">
                 <div class="row">
-                    <!-- INSTITUTES CARD -->
+                    <!-- ROLES CARD -->
                     <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-xs-12">
                         <div class="card">
                             <div class="card-statistic-4">
-                                <div class="align-items-center justify-content-between">
-                                    <div class="row">
-                                        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6 pr-0 pt-3">
-                                            <div class="card-content">
-                                                <h5 class="font-15">Institutes</h5>
-                                                <h2 class="mb-3 font-18">{{ total_institutes }}</h2>
-                                            </div>
+                                <div class="row align-items-center justify-content-between">
+                                    <div class="col-6 pr-0 pt-3">
+                                        <div class="card-content">
+                                            <h5 class="font-15">Roles</h5>
+                                            <h2 class="mb-3 font-18">{{ total_roles }}</h2>
+                                            <p class="mb-0"><span class="col-green">{{ total_roles }}</span> Active</p>
                                         </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6 pl-0">
-                                            <div class="banner-img">
-                                                <img src="../../static/assets/img/banner/1.png" alt="Institutes Banner">
-                                            </div>
+                                    </div>
+                                    <div class="col-6 pl-0">
+                                        <div class="banner-img">
+                                            <img src="{{ url_for('static', filename='assets/img/banner/2.png') }}"
+                                                 alt="Roles Banner">
                                         </div>
                                     </div>
                                 </div>
@@ -50,22 +50,23 @@
                         </div>
                     </div>
 
-                    <!-- ROLES CARD -->
+                    <!-- INSTITUTES CARD -->
                     <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-xs-12">
                         <div class="card">
                             <div class="card-statistic-4">
-                                <div class="align-items-center justify-content-between">
-                                    <div class="row">
-                                        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6 pr-0 pt-3">
-                                            <div class="card-content">
-                                                <h5 class="font-15">Roles</h5>
-                                                <h2 class="mb-3 font-18">{{ total_roles }}</h2>
-                                            </div>
+                                <div class="row align-items-center justify-content-between">
+                                    <div class="col-6 pr-0 pt-3">
+                                        <div class="card-content">
+                                            <h5 class="font-15">Institutes</h5>
+                                            <h2 class="mb-3 font-18">{{ total_institutes }}</h2>
+                                            <p class="mb-0"><span class="col-green">{{ total_institutes }}</span>
+                                                Active</p>
                                         </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6 pl-0">
-                                            <div class="banner-img">
-                                                <img src="../../static/assets/img/banner/2.png" alt="Roles Banner">
-                                            </div>
+                                    </div>
+                                    <div class="col-6 pl-0">
+                                        <div class="banner-img">
+                                            <img src="{{ url_for('static', filename='assets/img/banner/1.png') }}"
+                                                 alt="Institutes Banner">
                                         </div>
                                     </div>
                                 </div>
@@ -77,18 +78,18 @@
                     <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-xs-12">
                         <div class="card">
                             <div class="card-statistic-4">
-                                <div class="align-items-center justify-content-between">
-                                    <div class="row">
-                                        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6 pr-0 pt-3">
-                                            <div class="card-content">
-                                                <h5 class="font-15">Total Users</h5>
-                                                <h2 class="mb-3 font-18">{{ total_users }}</h2>
-                                            </div>
+                                <div class="row align-items-center justify-content-between">
+                                    <div class="col-6 pr-0 pt-3">
+                                        <div class="card-content">
+                                            <h5 class="font-15">Users</h5>
+                                            <h2 class="mb-3 font-18">{{ total_users }}</h2>
+                                            <p class="mb-0"><span class="col-green">{{ active_users }}</span> Active</p>
                                         </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6 pl-0">
-                                            <div class="banner-img">
-                                                <img src="../../static/assets/img/banner/3.png" alt="Users Banner">
-                                            </div>
+                                    </div>
+                                    <div class="col-6 pl-0">
+                                        <div class="banner-img">
+                                            <img src="{{ url_for('static', filename='assets/img/banner/5.png') }}"
+                                                 alt="Users Banner">
                                         </div>
                                     </div>
                                 </div>
@@ -100,18 +101,19 @@
                     <div class="col-xl-3 col-lg-6 col-md-6 col-sm-6 col-xs-12">
                         <div class="card">
                             <div class="card-statistic-4">
-                                <div class="align-items-center justify-content-between">
-                                    <div class="row">
-                                        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6 pr-0 pt-3">
-                                            <div class="card-content">
-                                                <h5 class="font-15">Attendance</h5>
-                                                <h2 class="mb-3 font-18">{{ total_attendance }}</h2>
-                                            </div>
+                                <div class="row align-items-center justify-content-between">
+                                    <div class="col-6 pr-0 pt-3">
+                                        <div class="card-content">
+                                            <h5 class="font-15">Attendance</h5>
+                                            <h2 class="mb-3 font-18">{{ total_attendance }}</h2>
+                                            <p class="mb-0"><span class="col-green">{{ today_attendance }}</span> Today
+                                            </p>
                                         </div>
-                                        <div class="col-lg-6 col-md-6 col-sm-6 col-xs-6 pl-0">
-                                            <div class="banner-img">
-                                                <img src="../../static/assets/img/banner/4.png" alt="Attendance Banner">
-                                            </div>
+                                    </div>
+                                    <div class="col-6 pl-0">
+                                        <div class="banner-img">
+                                            <img src="{{ url_for('static', filename='assets/img/banner/4.png') }}"
+                                                 alt="Attendance Banner">
                                         </div>
                                     </div>
                                 </div>
@@ -125,65 +127,12 @@
                         <div class="card">
                             <div class="card-header">
                                 <h4>User vs Attendance Analytics</h4>
-                                <div class="card-header-action">
-                                    <div class="dropdown">
-                                        <a href="#" data-toggle="dropdown" class="btn btn-warning dropdown-toggle">Options</a>
-                                        <div class="dropdown-menu">
-                                            <a href="#" class="dropdown-item has-icon"><i class="fas fa-eye"></i>
-                                                View</a>
-                                            <a href="#" class="dropdown-item has-icon"><i class="far fa-edit"></i> Edit</a>
-                                            <div class="dropdown-divider"></div>
-                                            <a href="#" class="dropdown-item has-icon text-danger"><i
-                                                    class="far fa-trash-alt"></i> Delete</a>
-                                        </div>
-                                    </div>
-                                    <a href="#" class="btn btn-primary">View All</a>
-                                </div>
                             </div>
 
                             <div class="card-body">
                                 <div class="row">
-                                    <div class="col-lg-9">
+                                    <div class="col-lg-12">
                                         <div id="chart1"></div>
-                                        <div class="row mb-0 mt-4">
-                                            <div class="col-lg-4 text-center">
-                                                <h5 class="m-b-0">{{ total_users }}</h5>
-                                                <p class="text-muted font-14 m-b-0">Total Users</p>
-                                            </div>
-                                            <div class="col-lg-4 text-center">
-                                                <h5 class="m-b-0">{{ total_institutes }}</h5>
-                                                <p class="text-muted font-14 m-b-0">Institutes</p>
-                                            </div>
-                                            <div class="col-lg-4 text-center">
-                                                <h5 class="m-b-0">{{ total_attendance }}</h5>
-                                                <p class="text-muted font-14 m-b-0">Total Attendance Records</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div class="col-lg-3">
-                                        <div class="row mt-5">
-                                            <div class="col-7 col-xl-7 mb-3">Users</div>
-                                            <div class="col-5 col-xl-5 mb-3">
-                                                <span class="text-big">{{ total_users }}</span>
-                                            </div>
-                                            <div class="col-7 col-xl-7 mb-3">Institutes</div>
-                                            <div class="col-5 col-xl-5 mb-3">
-                                                <span class="text-big">{{ total_institutes }}</span>
-                                            </div>
-                                            <div class="col-7 col-xl-7 mb-3">Roles</div>
-                                            <div class="col-5 col-xl-5 mb-3">
-                                                <span class="text-big">{{ total_roles }}</span>
-                                            </div>
-                                            <div class="col-7 col-xl-7 mb-3">Attendance</div>
-                                            <div class="col-5 col-xl-5 mb-3">
-                                                <span class="text-big">{{ total_attendance }}</span>
-                                            </div>
-                                            <div class="col-7 col-xl-7 mb-3">Active Institutes</div>
-                                            <div class="col-5 col-xl-5 mb-3">
-                                                <span class="text-big">{{ total_institutes }}</span>
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div> <!-- card-body -->
@@ -352,7 +301,7 @@
         new ApexCharts(document.querySelector("#chart4"), options).render();
     }
 
-        {#document.addEventListener("DOMContentLoaded", renderChart);#}
+    {#document.addEventListener("DOMContentLoaded", renderChart);#}
 
     document.addEventListener("DOMContentLoaded", function () {
         renderChart();
