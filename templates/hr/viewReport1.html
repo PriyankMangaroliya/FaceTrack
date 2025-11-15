@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1, maximum-scale=1, shrink-to-fit=no" name="viewport">
+    <title>FaceTrack - HR | View Reports</title>
+
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/app.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/bundles/datatables/datatables.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/bundles/datatables/DataTables-1.10.16/css/dataTables.bootstrap4.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/components.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='assets/img/favicon.ico') }}">
+</head>
+
+<body>
+<div class="loader"></div>
+<div id="app">
+    <div class="main-wrapper main-wrapper-1">
+
+        <!-- Sidebar -->
+        {% include 'hr/sidebar.html' %}
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <section class="section">
+                <div class="section-header">
+                    <h1>Employee Attendance Report</h1>
+                </div>
+
+                <div class="section-body">
+                    <!-- Report Form -->
+                    <form method="POST" class="form-inline mb-4" action="{{ url_for('hr_report.view_report') }}">
+                        <div class="form-group mr-3">
+                            <label for="employee_id">Employee:</label>
+                            <select class="form-control ml-2" name="employee_id" id="employee_id" required>
+                                <option value="">Select Employee</option>
+                                {% for emp in employees %}
+                                    <option value="{{ emp._id }}" {% if emp._id|string == selected_employee %}selected{% endif %}>
+                                        {{ emp.get("name", "Unknown") }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group mr-3">
+                            <label for="month">Month:</label>
+                            <input type="month" class="form-control ml-2" name="month" id="month" value="{{ selected_month }}" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">View Report</button>
+                    </form>
+
+                    {% if report_data %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-bordered" id="attendanceTable">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Time In</th>
+                                        <th>Time Out</th>
+                                        <th>Duration</th>
+                                        <th>Label</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in report_data %}
+                                        {% if record.entries %}
+                                            {% for entry in record.entries %}
+                                                <tr>
+                                                    <td>{{ record.date.strftime("%Y-%m-%d") }}</td>
+                                                    <td>{{ entry.in }}</td>
+                                                    <td>{{ entry.out }}</td>
+                                                    <td>{{ entry.duration }}</td>
+                                                    <td>{{ entry.label }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td>{{ record.date.strftime("%Y-%m-%d") }}</td>
+                                                <td colspan="4" class="text-center text-muted">No attendance</td>
+                                            </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Export Buttons -->
+                        <div class="mt-3">
+                            <a href="{{ url_for('hr_report.export_pdf', employee_id=selected_employee, month=selected_month) }}"
+                               class="btn btn-danger mr-2 {% if not report_data %}disabled{% endif %}">Download PDF</a>
+                            <a href="{{ url_for('hr_report.export_csv', employee_id=selected_employee, month=selected_month) }}"
+                               class="btn btn-success mr-2 {% if not report_data %}disabled{% endif %}">Download CSV</a>
+                            <a href="{{ url_for('hr_report.export_excel', employee_id=selected_employee, month=selected_month) }}"
+                               class="btn btn-info {% if not report_data %}disabled{% endif %}">Download Excel</a>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Select an employee and month to view the report.</p>
+                    {% endif %}
+                </div>
+            </section>
+
+            {% include 'hr/settings.html' %}
+        </div>
+
+    </div>
+</div>
+
+<!-- JS Files -->
+<script src="{{ url_for('static', filename='assets/js/app.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/bundles/datatables/datatables.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/bundles/datatables/DataTables-1.10.16/js/dataTables.bootstrap4.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/page/datatables.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/scripts.js') }}"></script>
+
+<!-- Initialize DataTables -->
+<script>
+    $(document).ready(function() {
+        $('#attendanceTable').DataTable({
+            "paging": true,
+            "searching": true,
+            "ordering": true,
+            "info": true
+        });
+    });
+</script>
+
+</body>
+</html>

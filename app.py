@@ -17,6 +17,7 @@ from controllers.hr_controller import hr_bp
 from controllers.hr_users_controller import hr_users_bp
 from controllers.hr_employee_controller import hr_employee_bp
 from controllers.hr_attendance_controller import hr_attendance_bp
+from controllers.hr_r1_controller import hr_report_bp
 
 from controllers.emp_controller import employee_bp
 
@@ -38,6 +39,7 @@ app.register_blueprint(hr_bp)
 app.register_blueprint(hr_users_bp)
 app.register_blueprint(hr_employee_bp)
 app.register_blueprint(hr_attendance_bp)
+app.register_blueprint(hr_report_bp)
 
 app.register_blueprint(employee_bp)
 
