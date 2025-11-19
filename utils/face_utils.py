@@ -147,7 +147,7 @@ def capture_faces_for_user(user_id, user_name, num_samples=5):
 # 2️⃣ TRAIN LBPH MODEL (Return Binary)
 # -------------------------------------------------------------
 def train_lbph_model():
-    recognizer = cv2.face.LBPHFaceRecognizer_create()
+    recognizer = cv2.face.LBPHFaceRecognizer_create() #Local Binary Pattern Histogram
     faces, labels = [], []
     label_map, label_id = {}, 0
 
