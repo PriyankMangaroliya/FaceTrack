@@ -19,7 +19,7 @@ MONGO_URI = "mongodb://localhost:27017/"
 DB_NAME = "AttendanceSystem"
 
 MIN_DURATION_MINUTES = 5
-CONFIDENCE_THRESHOLD = 0.4
+CONFIDENCE_THRESHOLD = 0.40
 
 # Proper timezone-aware IST
 IST = timezone(timedelta(hours=5, minutes=30))
