@@ -88,18 +88,38 @@ def detect_faces_dnn(frame, conf_threshold=CONFIDENCE_THRESHOLD):
 # ============================
 # MARK ATTENDANCE
 # ============================
-def mark_attendance_in_db(user_id, user_name, institute_id="Unknown"):
+def mark_attendance_in_db(user_id, user_name):
     try:
         client = MongoClient(MONGO_URI)
         db = client[DB_NAME]
 
+        # ---------------------------
+        # GET USER & INSTITUTE FROM DB
+        # ---------------------------
+        user = db.users.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            print("[ERROR] User not found in DB")
+            return "Error"
+
+        # Get institute_id as STRING
+        institute_id = str(user.get("institute_id", ""))
+
+        # ---------------------------
+        # DATE / TIME
+        # ---------------------------
         now_ist = datetime.now(IST)
         today = now_ist.strftime("%Y-%m-%d")
         current_time = now_ist.strftime("%H:%M")
 
-        rec = db.attendances.find_one({"user_id": str(user_id), "date": today})
+        # ATTENDANCE EXIST?
+        rec = db.attendances.find_one({
+            "user_id": str(user_id),
+            "date": today
+        })
 
+        # ---------------------------
         # FIRST ENTRY → CHECK-IN
+        # ---------------------------
         if not rec:
             entry = {
                 "time_in": current_time,
@@ -107,9 +127,10 @@ def mark_attendance_in_db(user_id, user_name, institute_id="Unknown"):
                 "duration": None,
                 "label": "Check-In"
             }
+
             db.attendances.insert_one({
                 "user_id": str(user_id),
-                "institute_id": str(institute_id),
+                "institute_id": institute_id,
                 "date": today,
                 "entries": [entry],
                 "status": "present",
@@ -117,13 +138,17 @@ def mark_attendance_in_db(user_id, user_name, institute_id="Unknown"):
                 "created_at": now_ist,
                 "updated_at": now_ist
             })
-            print(f"[NEW] {user_name} | Present (Check-In {current_time})")
+
+            print(f"[NEW] {user_name} | Check-In {current_time}")
             return "Check-In"
 
+        # ---------------------------
+        # OTHER ENTRIES
+        # ---------------------------
         entries = rec.get("entries", [])
         last = entries[-1] if entries else None
 
-        # NO LAST ENTRY
+        # No last entry → add check-in
         if not last:
             entries.append({
                 "time_in": current_time,
@@ -135,20 +160,19 @@ def mark_attendance_in_db(user_id, user_name, institute_id="Unknown"):
                 {"_id": rec["_id"]},
                 {"$set": {"entries": entries, "updated_at": now_ist}}
             )
-            print(f"[ADD] {user_name} | Present (Check-In {current_time})")
+            print(f"[ADD] {user_name} | Check-In {current_time}")
             return "Check-In"
 
-        # LAST ENTRY OPEN → CHECK-OUT
+        # Last entry has no time_out → CHECK-OUT
         if last.get("time_out") is None:
             diff = _minutes_between(last["time_in"], current_time)
 
             if diff < MIN_DURATION_MINUTES:
-                print(f"[REPEAT] {user_name} | Already Present ({diff} min)")
+                print(f"[REPEAT] {user_name} | Already Present ({diff}m)")
                 return f"Already Present ({diff}m)"
 
-            duration = max(diff, MIN_DURATION_MINUTES)
             last["time_out"] = current_time
-            last["duration"] = _format_dur(duration)
+            last["duration"] = _format_dur(diff)
             last["label"] = "Check-Out"
 
             entries[-1] = last
@@ -156,16 +180,15 @@ def mark_attendance_in_db(user_id, user_name, institute_id="Unknown"):
                 {"_id": rec["_id"]},
                 {"$set": {"entries": entries, "updated_at": now_ist}}
             )
-
-            print(f"[OUT] {user_name} | Present (Check-Out {current_time})")
+            print(f"[OUT] {user_name} | Check-Out {current_time}")
             return "Check-Out"
 
-        # LAST ENTRY CLOSED → NEW CHECK-IN
-        last_out = last["time_out"]
+        # Last entry closed → NEW CHECK-IN
+        last_out = last.get("time_out")
         diff = _minutes_between(last_out, current_time)
 
         if diff < MIN_DURATION_MINUTES:
-            print(f"[REPEAT] {user_name} | Already Present ({diff} min)")
+            print(f"[REPEAT] {user_name} | Already Present ({diff}m)")
             return f"Already Present ({diff}m)"
 
         entries.append({
@@ -180,7 +203,7 @@ def mark_attendance_in_db(user_id, user_name, institute_id="Unknown"):
             {"$set": {"entries": entries, "updated_at": now_ist}}
         )
 
-        print(f"[IN] {user_name} | Present (New Check-In {current_time})")
+        print(f"[IN] {user_name} | New Check-In {current_time}")
         return "Check-In"
 
     except Exception as e:
