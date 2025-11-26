@@ -31,7 +31,7 @@ def login():
             elif role_name == "hr":
                 return redirect(url_for("hr.index"))
             elif role_name == "employee":
-                return redirect(url_for("employee.index"))
+                return redirect(url_for("employee.dashboard"))
             else:
                 # Default if role not found
                 flash("Role not recognized. Redirecting to home.", "warning")
